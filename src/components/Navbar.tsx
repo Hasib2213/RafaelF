@@ -44,7 +44,7 @@ export default function Navbar() {
         <div className="relative flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/15 backdrop-blur-md">
           {/* Sign Up Link */}
           <Link
-            href="#signup"
+            href="/feed"
             onClick={() => setActiveTab("signup")}
             className={`relative z-10 px-5 py-2 text-base transition-colors duration-200 select-none ${
               activeTab === "signup"
@@ -64,7 +64,7 @@ export default function Navbar() {
 
           {/* Log In Link */}
           <Link
-            href="#login"
+            href="/feed"
             onClick={() => setActiveTab("login")}
             className={`relative z-10 px-5 py-2 text-base transition-colors duration-200 select-none ${
               activeTab === "login"

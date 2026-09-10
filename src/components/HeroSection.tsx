@@ -47,7 +47,7 @@ export default function HeroSection() {
           <div className="relative inline-flex items-center p-1.5 rounded-xl bg-white/[0.06] border border-white/15 backdrop-blur-md gap-1">
             {/* Get Started Free Button */}
             <Link
-              href="#signup"
+              href="/feed"
               onClick={() => setActiveAction("get-started")}
               className={`relative z-10 inline-flex items-center gap-2.5 px-4 py-2.5 h-12 rounded-lg text-base transition-colors duration-200 select-none ${activeAction === "get-started"
                   ? "font-semibold text-white"
