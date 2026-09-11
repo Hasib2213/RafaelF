@@ -4,14 +4,17 @@ import React from "react";
 import Image from "next/image";
 
 interface ThankYouModalProps {
+  isOpen?: boolean;
   onClose: () => void;
   message?: string;
 }
 
 export default function ThankYouModal({
+  isOpen = true,
   onClose,
   message = "Thanks. We’ll use this to improve your next summaries.",
 }: ThankYouModalProps) {
+  if (!isOpen) return null;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 figma-backdrop-overlay animate-fadeIn select-none"

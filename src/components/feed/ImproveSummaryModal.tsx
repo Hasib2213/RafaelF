@@ -6,20 +6,25 @@ import { Sparkles, Check } from "lucide-react";
 import { BriefingItem } from "./BriefingCard";
 
 interface ImproveSummaryModalProps {
+  isOpen?: boolean;
   briefing?: BriefingItem | null;
   onClose: () => void;
   onSkip?: () => void;
   onGenerateBetter?: () => void;
+  onSubmitRequest?: (req: any) => void;
   initialRating?: number;
 }
 
 export default function ImproveSummaryModal({
+  isOpen = true,
   briefing,
   onClose,
   onSkip,
   onGenerateBetter,
+  onSubmitRequest,
   initialRating = 5,
 }: ImproveSummaryModalProps) {
+  if (!isOpen) return null;
   const [rating, setRating] = useState<number>(initialRating);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);

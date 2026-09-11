@@ -7,10 +7,10 @@ import {
   Home,
   Users,
   Bookmark,
-  Download,
   User,
   Crown,
   LogOut,
+  ThumbsUp,
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 
@@ -23,10 +23,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: "Home/Feed", href: "/feed", icon: Home },
-  { name: "Following", href: "/feed#following", icon: Users },
-  { name: "Saved", href: "/feed#saved", icon: Bookmark },
-  { name: "Downloads", href: "/feed#downloads", icon: Download },
-  { name: "Profile", href: "/feed#profile", icon: User },
+  { name: "Following", href: "/following", icon: Users },
+  { name: "Library", href: "/library", icon: Bookmark },
+  { name: "Profile", href: "/profile", icon: User },
+  { name: "My Feedback", href: "/my-feedback", icon: ThumbsUp },
 ];
 
 export default function FeedSidebar() {
@@ -47,7 +47,10 @@ export default function FeedSidebar() {
         <nav className="flex flex-col gap-1.5" aria-label="Main Navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = item.href === "/feed" && pathname === "/feed";
+            const isActive =
+              item.href === "/feed"
+                ? pathname === "/feed"
+                : pathname.startsWith(item.href);
 
             return (
               <Link
@@ -84,7 +87,7 @@ export default function FeedSidebar() {
           </p>
 
           <Link
-            href="/#pricing"
+            href="/pricing"
             className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] text-white text-sm font-semibold flex items-center justify-center shadow-lg shadow-purple-900/40 hover:brightness-110 active:scale-95 transition-all select-none font-['Lato',sans-serif]"
           >
             Upgrade to Pro

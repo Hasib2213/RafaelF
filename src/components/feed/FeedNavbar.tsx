@@ -6,9 +6,15 @@ import { Search, Bell } from "lucide-react";
 
 interface FeedNavbarProps {
   onSearch?: (query: string) => void;
+  showSearch?: boolean;
+  userSubtitle?: string;
 }
 
-export default function FeedNavbar({ onSearch }: FeedNavbarProps) {
+export default function FeedNavbar({
+  onSearch,
+  showSearch = true,
+  userSubtitle = "Admin",
+}: FeedNavbarProps) {
   const [searchVal, setSearchVal] = useState("");
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,20 +23,22 @@ export default function FeedNavbar({ onSearch }: FeedNavbarProps) {
   };
 
   return (
-    <header className="h-20 w-full shrink-0 border-b border-white/20 px-6 flex items-center justify-between gap-6 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] z-20 sticky top-0 backdrop-blur-md bg-[#2B2A7D]/90 [background-image:linear-gradient(90deg,rgba(79,57,246,0.2)_0%,rgba(43,127,255,0.2)_100%)]">
+    <header className={`h-20 w-full shrink-0 border-b border-white/20 px-6 flex items-center ${showSearch ? "justify-between" : "justify-end"} gap-6 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] z-20 sticky top-0 backdrop-blur-md bg-[#2B2A7D]/90 [background-image:linear-gradient(90deg,rgba(79,57,246,0.2)_0%,rgba(43,127,255,0.2)_100%)]`}>
       {/* Search Input Bar (Figma Frame 2147227758) */}
-      <div className="flex-1 max-w-[634px]">
-        <div className="relative flex items-center h-11 px-3 gap-2.5 rounded-lg bg-white/20 border border-white/10 focus-within:border-white/40 focus-within:bg-white/25 transition-all">
-          <Search className="w-5 h-5 text-[#B5C8DB] shrink-0" />
-          <input
-            type="text"
-            value={searchVal}
-            onChange={handleSearchChange}
-            placeholder="Search by name or email...."
-            className="w-full bg-transparent text-sm text-white placeholder-[#D0D0D0] outline-none font-['Lato',sans-serif]"
-          />
+      {showSearch && (
+        <div className="flex-1 max-w-[634px]">
+          <div className="relative flex items-center h-11 px-3 gap-2.5 rounded-lg bg-white/20 border border-white/10 focus-within:border-white/40 focus-within:bg-white/25 transition-all">
+            <Search className="w-5 h-5 text-[#B5C8DB] shrink-0" />
+            <input
+              type="text"
+              value={searchVal}
+              onChange={handleSearchChange}
+              placeholder="Search by name or email...."
+              className="w-full bg-transparent text-sm text-white placeholder-[#D0D0D0] outline-none font-['Lato',sans-serif]"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Right Controls (Figma Frame 2147239857) */}
       <div className="flex items-center gap-5 shrink-0">
@@ -49,7 +57,7 @@ export default function FeedNavbar({ onSearch }: FeedNavbarProps) {
 
         {/* User Profile Pill (Figma Frame 2147227759: Abir Hossain / Admin) */}
         <Link
-          href="#profile"
+          href="/profile"
           className="flex items-center gap-2.5 h-11 px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 border border-white/10 transition-all select-none"
         >
           {/* Avatar (Figma Ellipse 2: 32px x 32px) */}
@@ -63,7 +71,7 @@ export default function FeedNavbar({ onSearch }: FeedNavbarProps) {
               Abir Hossain
             </span>
             <span className="text-sm font-normal text-[#D0D0D0] leading-tight font-['Lato',sans-serif]">
-              Admin
+              {userSubtitle}
             </span>
           </div>
         </Link>

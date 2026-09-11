@@ -6,9 +6,11 @@ import { Check } from "lucide-react";
 import { BriefingItem } from "./BriefingCard";
 
 interface FeedbackModalProps {
+  isOpen?: boolean;
   briefing?: BriefingItem | null;
   onClose: () => void;
   onSubmitSuccess?: () => void;
+  onSubmitFeedback?: (data: { rating: number; selectedOption: string; comment: string; requestImproved: boolean }) => void;
   initialRating?: number;
 }
 
@@ -28,14 +30,19 @@ export const POSITIVE_FEEDBACK_OPTIONS = [
   "Saved me time",
   "Great summary",
   "Kept the essence",
+  "Actionable advice",
+  "Accurate and concise",
 ];
 
 export default function FeedbackModal({
+  isOpen = true,
   briefing,
   onClose,
   onSubmitSuccess,
-  initialRating = 5,
+  onSubmitFeedback,
+  initialRating = 4,
 }: FeedbackModalProps) {
+  if (!isOpen) return null;
   const [rating, setRating] = useState<number>(initialRating); // Default 5 stars as in Figma Desktop - 61
   const [hoverRating, setHoverRating] = useState<number | null>(null);
 
