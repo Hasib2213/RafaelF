@@ -6,6 +6,7 @@ import FeedNavbar from "@/components/feed/FeedNavbar";
 import CreatorCard, { Creator } from "@/components/following/CreatorCard";
 import ChannelPreviewCard from "@/components/following/ChannelPreviewCard";
 import UnfollowModal from "@/components/following/UnfollowModal";
+import Footer from "@/components/Footer";
 import { Plus, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X, ExternalLink, CheckCircle, Check, Eye } from "lucide-react";
 
 type SortFilter = "recently" | "oldest" | "a-z" | "z-a";
@@ -592,6 +593,11 @@ export default function FollowingPage() {
             </div>
           </footer>
         </main>
+
+        {/* Footer */}
+        <div className="w-full mt-16">
+          <Footer />
+        </div>
       </div>
 
       {/* Explore Channel Preview Modal */}

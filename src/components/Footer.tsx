@@ -88,13 +88,13 @@ export default function Footer() {
           <p>© 2025 - All rights Reserved</p>
 
           <div className="flex items-center gap-8 text-sm sm:text-base">
-            <Link href="#contact" className="hover:text-white transition-colors">
+            <Link href="/contact-us" className="hover:text-white transition-colors">
               Contact Us
             </Link>
-            <Link href="#terms" className="hover:text-white transition-colors">
+            <Link href="/terms-of-use" className="hover:text-white transition-colors">
               Terms of Use
             </Link>
-            <Link href="#privacy" className="hover:text-white transition-colors">
+            <Link href="/privacy-policy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>
           </div>

@@ -11,6 +11,7 @@ import FeedbackModal from "@/components/feed/FeedbackModal";
 import ImproveSummaryModal from "@/components/feed/ImproveSummaryModal";
 import ThankYouModal from "@/components/feed/ThankYouModal";
 import UnfollowModal from "@/components/following/UnfollowModal";
+import Footer from "@/components/Footer";
 import { BriefingItem } from "@/components/feed/BriefingCard";
 import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, X, ArrowLeft } from "lucide-react";
 
@@ -405,6 +406,11 @@ export default function ChannelDetailPage({
             </div>
           </footer>
         </main>
+
+        {/* Footer */}
+        <div className="w-full mt-16">
+          <Footer />
+        </div>
       </div>
 
       {/* Audio Player Modal (Desktop - 59: 516px x 737px) */}

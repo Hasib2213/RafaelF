@@ -71,7 +71,7 @@ export default function HeroSection() {
 
             {/* Contact Us Button */}
             <Link
-              href="#contact"
+              href="/contact-us"
               onClick={() => setActiveAction("contact")}
               className={`relative z-10 inline-flex items-center gap-2.5 px-4 py-2.5 h-12 rounded-lg text-base transition-colors duration-200 select-none ${activeAction === "contact"
                   ? "font-semibold text-white"

@@ -11,15 +11,18 @@ import {
   Crown,
   LogOut,
   ThumbsUp,
+  Star,
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "./LogoutModal";
+import FeedbackModal from "./FeedbackModal";
 
 interface NavItem {
   name: string;
-  href: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  isAction?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -33,6 +36,7 @@ const navItems: NavItem[] = [
 export default function FeedSidebar() {
   const pathname = usePathname();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false);
@@ -55,15 +59,31 @@ export default function FeedSidebar() {
           <nav className="flex flex-col gap-1.5" aria-label="Main Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
+
+              if (item.isAction) {
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => setIsFeedbackModalOpen(true)}
+                    className="flex items-center gap-3 h-12 px-3 rounded-lg text-base font-['Lato',sans-serif] transition-all select-none text-white/80 hover:text-white hover:bg-white/10 font-normal w-full text-left"
+                  >
+                    <Icon className="w-5 h-5 shrink-0 text-[#B5C8DB]" />
+                    <span className="truncate">{item.name}</span>
+                  </button>
+                );
+              }
+
+              const href = item.href || "/feed";
               const isActive =
-                item.href === "/feed"
+                href === "/feed"
                   ? pathname === "/feed"
-                  : pathname.startsWith(item.href);
+                  : pathname.startsWith(href);
 
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={href}
                   className={`flex items-center gap-3 h-12 px-3 rounded-lg text-base font-['Lato',sans-serif] transition-all select-none ${
                     isActive
                       ? "bg-white/20 text-white font-semibold border-l-4 border-[#2563EB] shadow-sm"
@@ -98,7 +118,7 @@ export default function FeedSidebar() {
               href="/pricing"
               className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] text-white text-sm font-semibold flex items-center justify-center shadow-lg shadow-purple-900/40 hover:brightness-110 active:scale-95 transition-all select-none font-['Lato',sans-serif]"
             >
-              Upgrade to Pro
+              Upgrade Now
             </Link>
           </div>
 
@@ -119,6 +139,12 @@ export default function FeedSidebar() {
         isOpen={isLogoutModalOpen}
         onConfirm={handleConfirmLogout}
         onCancel={() => setIsLogoutModalOpen(false)}
+      />
+
+      {/* Rate Us / Feedback Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </>
   );

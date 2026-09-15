@@ -9,6 +9,7 @@ import AudioPlayerModal from "@/components/feed/AudioPlayerModal";
 import FeedbackModal from "@/components/feed/FeedbackModal";
 import ImproveSummaryModal from "@/components/feed/ImproveSummaryModal";
 import ThankYouModal from "@/components/feed/ThankYouModal";
+import Footer from "@/components/Footer";
 import { RotateCw, Sparkles, Star } from "lucide-react";
 
 // Mock briefing data reflecting Curio's YouTube AI briefings
@@ -31,6 +32,7 @@ const initialBriefings: BriefingItem[] = [
       "Eliminate toxic people, habits, and cognitive traps that drain momentum.",
       "The compound effect of 1% disciplined daily progress outperforms sporadic intense effort.",
     ],
+    timeframe: "daily",
   },
   {
     id: "2",
@@ -50,6 +52,7 @@ const initialBriefings: BriefingItem[] = [
       "Engage with effort as the reward to build psychological resilience.",
       "Intermittent reward schedules are the most effective way to sustain lifelong motivation.",
     ],
+    timeframe: "daily",
   },
   {
     id: "3",
@@ -69,6 +72,7 @@ const initialBriefings: BriefingItem[] = [
       "AI in drug discovery and molecular biology will advance medicine by decades.",
       "Autonomous coding agents will redefine software engineering into system architecture.",
     ],
+    timeframe: "daily",
   },
   {
     id: "4",
@@ -88,6 +92,7 @@ const initialBriefings: BriefingItem[] = [
       "Organize by actionability, not by topic or Dewey Decimal category.",
       "Express knowledge into tangible outputs (briefs, notes, decisions).",
     ],
+    timeframe: "daily",
   },
   {
     id: "5",
@@ -107,6 +112,7 @@ const initialBriefings: BriefingItem[] = [
       "The sensation of solid touch is electromagnetic pushback.",
       "Every physical interaction is fundamentally a non-contact field interaction.",
     ],
+    timeframe: "daily",
   },
   {
     id: "6",
@@ -126,6 +132,7 @@ const initialBriefings: BriefingItem[] = [
       "True leadership is based on inspiring voluntary commitment rather than coercion.",
       "Authenticity in brand messaging creates resilient user loyalty.",
     ],
+    timeframe: "daily",
   },
   {
     id: "7",
@@ -145,6 +152,7 @@ const initialBriefings: BriefingItem[] = [
       "Inference-time search scales reasoning beyond static weight memorization.",
       "Reinforcement learning from verifiable rewards is key for rigorous math and code.",
     ],
+    timeframe: "weekly",
   },
   {
     id: "8",
@@ -164,6 +172,7 @@ const initialBriefings: BriefingItem[] = [
       "Accountability mirrors: radical self-honesty accelerates transformation.",
       "Turn perceived suffering into competitive fuel for relentless resilience.",
     ],
+    timeframe: "weekly",
   },
   {
     id: "9",
@@ -183,6 +192,67 @@ const initialBriefings: BriefingItem[] = [
       "Eye-tracking combined with micro-gestures is the most natural spatial input paradigm.",
       "Silicon thermal efficiency dictates the form factor of next-generation wearables.",
     ],
+    timeframe: "weekly",
+  },
+  {
+    id: "10",
+    title: "The AI Revolution in Biology: AlphaFold 3 & Genomic Synthesis",
+    duration: "16:15",
+    thumbnail: "/images/analysis.png",
+    channelName: "DeepMind Science",
+    subscribers: "3.2M subscribers",
+    channelAvatarColor: "from-cyan-600 to-blue-700",
+    channelInitials: "DS",
+    summary:
+      "This week's top breakthrough: modeling DNA, RNA, ligands, and antibody complexes with atomic-precision deep learning architectures.",
+    fullSummary:
+      "AlphaFold 3 extends structural prediction beyond proteins to almost all biological molecules. Researchers can now simulate drug interactions and molecular pathways in minutes instead of years.",
+    keyTakeaways: [
+      "Joint diffusion architectures enable direct 3D atomic coordinate generation.",
+      "Cross-molecular binding affinities can be screened in silico.",
+      "Accelerates computational medicine and therapeutic targeting.",
+    ],
+    timeframe: "weekly",
+  },
+  {
+    id: "11",
+    title: "The Psychology of Peak Flow States & Ultra Focus | Steven Kotler",
+    duration: "19:20",
+    thumbnail: "/images/audio.png",
+    channelName: "Tom Bilyeu",
+    subscribers: "3.98M subscribers",
+    channelAvatarColor: "from-purple-600 to-pink-700",
+    channelInitials: "TB",
+    summary:
+      "Neuroscience protocols to trigger 400% productivity gains by systematically entering flow states during complex creative work.",
+    fullSummary:
+      "Steven Kotler details the neurochemical cascade (dopamine, anandamide, endorphins) that occurs in deep flow. Learn how to construct an environment optimized for uninterrupted deep focus.",
+    keyTakeaways: [
+      "Challenge-skills balance: tasks must be 4% beyond current comfort zone.",
+      "Clear micro-goals prevent cognitive wandering and hesitation.",
+      "Recovery protocols are mandatory to replenish depleted neurochemistry.",
+    ],
+    timeframe: "weekly",
+  },
+  {
+    id: "12",
+    title: "Quantum Supremacy to Fault Tolerance: 2026 Commercial Landscape",
+    duration: "17:45",
+    thumbnail: "/images/hero.png",
+    channelName: "Quanta Magazine",
+    subscribers: "1.45M subscribers",
+    channelAvatarColor: "from-teal-600 to-emerald-800",
+    channelInitials: "QM",
+    summary:
+      "An essential weekly retrospective on topological qubits, surface codes, and error correction milestones across major quantum laboratories.",
+    fullSummary:
+      "Exploring the critical transition from noisy intermediate-scale quantum (NISQ) devices to fault-tolerant logical qubits. We review the latest physical demonstrations of error threshold crossing.",
+    keyTakeaways: [
+      "Logical qubits with error suppression outperform physical qubits.",
+      "Cryogenic control silicon reduces wiring bottlenecks dramatically.",
+      "Post-quantum cryptography adoption is now urgent for enterprise security.",
+    ],
+    timeframe: "weekly",
   },
 ];
 
@@ -259,6 +329,15 @@ export default function FeedPage() {
   };
 
   const filteredBriefings = initialBriefings.filter((item) => {
+    // 1. Timeframe filter (Daily vs Weekly)
+    const matchesTimeframe =
+      !item.timeframe ||
+      item.timeframe === "both" ||
+      item.timeframe === activeTab;
+
+    if (!matchesTimeframe) return false;
+
+    // 2. Search query filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -287,7 +366,9 @@ export default function FeedPage() {
                 Welcome back, Abir! 👋
               </h1>
               <p className="text-sm sm:text-base text-[#D0D0D0] mt-1 font-['Lato',sans-serif]">
-                Here&apos;s what&apos;s happening with your briefings today.
+                {activeTab === "daily"
+                  ? "Here's what's happening with your briefings today."
+                  : "Here are the top trending briefings and deep dives from this past week."}
               </p>
             </div>
 
@@ -370,6 +451,11 @@ export default function FeedPage() {
             </div>
           )}
         </main>
+
+        {/* Footer */}
+        <div className="w-full mt-12">
+          <Footer />
+        </div>
       </div>
 
       {/* Right Sidebar (Figma: Navigation - width 239px) */}
