@@ -34,7 +34,7 @@ export default function CTABanner() {
           {/* Primary Action Button */}
           <div>
             <Link
-              href="#signup"
+              href="/signup"
               className="group inline-flex items-center gap-3.5 px-3 py-1.5 h-12 rounded-lg text-base font-semibold text-white bg-figma-btn shadow-xl shadow-purple-950/50 hover:shadow-purple-700/40 hover:scale-[1.02] transition-all active:scale-[0.98]"
             >
               <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#7A3BED] shrink-0 group-hover:translate-x-0.5 transition-transform shadow-inner">
