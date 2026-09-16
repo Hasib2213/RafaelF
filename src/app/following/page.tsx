@@ -304,15 +304,24 @@ export default function FollowingPage() {
   // Desktop - 45 specs: 6 cards displayed in grid (748px height) when preview is open
   const displayedCreators = previewCreator ? creators.slice(0, 6) : creators.slice(0, itemsPerPage);
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma Side Panel: 240px) */}
-      <FeedSidebar />
+      {/* Left Sidebar (Figma Side Panel: 240px, responsive drawer on mobile) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Right Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Nav (Figma Desktop - 44 / Desktop - 45: 80px, userSubtitle='abir07@gmai.com') */}
-        <FeedNavbar showSearch={false} userSubtitle="abir07@gmai.com" />
+        <FeedNavbar
+          showSearch={false}
+          userSubtitle="abir07@gmai.com"
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
+        />
 
         {/* Following Main Canvas (Figma Frame 2147239907: width 1152px, max-w-[1152px]) */}
         <main className="flex-1 w-full max-w-[1152px] mx-auto px-6 py-6 flex flex-col gap-6">

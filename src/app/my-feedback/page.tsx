@@ -113,10 +113,15 @@ export default function MyFeedbackPage() {
     });
   };
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma Desktop - 55 Side Panel: 240px wide, My Feedback active) */}
-      <FeedSidebar />
+      {/* Left Sidebar (Figma Desktop - 55 Side Panel: 240px wide, My Feedback active, responsive on mobile) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Right Column */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -124,6 +129,7 @@ export default function MyFeedbackPage() {
         <FeedNavbar
           showSearch={false}
           userSubtitle="abir07@gmai.com"
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
         {/* Main Content Container (Figma Frame 2147227640: 1152px wide) */}

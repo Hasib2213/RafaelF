@@ -380,10 +380,15 @@ export default function LibraryPage() {
 
   const displayedItems = filteredItems.slice(0, itemsPerPage);
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma Side Panel: 240px x 806px) */}
-      <FeedSidebar />
+      {/* Left Sidebar (Figma Side Panel: 240px x 806px, responsive drawer on mobile) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Right Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -392,6 +397,7 @@ export default function LibraryPage() {
           showSearch={true}
           onSearch={(q) => setSearchQuery(q)}
           userSubtitle="abir07@gmai.com"
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
         {/* Main Canvas Canvas (Figma Frame 2147239907: width 1152px, left 264px, top 104px) */}

@@ -81,10 +81,15 @@ export default function ProfilePage() {
     }
   };
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma Desktop - 7 Side Panel: 240px wide, Profile active) */}
-      <FeedSidebar />
+      {/* Left Sidebar (Figma Desktop - 7 Side Panel: 240px wide, Profile active, responsive on mobile) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Right Column */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -92,6 +97,7 @@ export default function ProfilePage() {
         <FeedNavbar
           showSearch={false}
           userSubtitle="abir07@gmai.com"
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
         {/* Main Content Area (Figma Frame 2147227640: 1152px wide) */}

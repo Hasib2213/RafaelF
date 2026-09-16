@@ -2,19 +2,21 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Search, Bell } from "lucide-react";
+import { Search, Bell, Menu } from "lucide-react";
 import NotificationModal from "./NotificationModal";
 
 interface FeedNavbarProps {
   onSearch?: (query: string) => void;
   showSearch?: boolean;
   userSubtitle?: string;
+  onMobileMenuToggle?: () => void;
 }
 
 export default function FeedNavbar({
   onSearch,
   showSearch = true,
   userSubtitle = "Admin",
+  onMobileMenuToggle,
 }: FeedNavbarProps) {
   const [searchVal, setSearchVal] = useState("");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -26,10 +28,22 @@ export default function FeedNavbar({
 
   return (
     <>
-      <header className={`h-20 w-full shrink-0 border-b border-white/20 px-6 flex items-center ${showSearch ? "justify-between" : "justify-end"} gap-6 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] z-20 sticky top-0 backdrop-blur-md bg-[#2B2A7D]/90 [background-image:linear-gradient(90deg,rgba(79,57,246,0.2)_0%,rgba(43,127,255,0.2)_100%)]`}>
+      <header className={`h-20 w-full shrink-0 border-b border-white/20 px-4 sm:px-6 flex items-center ${showSearch ? "justify-between" : "justify-between"} gap-4 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] z-20 sticky top-0 backdrop-blur-md bg-[#2B2A7D]/90 [background-image:linear-gradient(90deg,rgba(79,57,246,0.2)_0%,rgba(43,127,255,0.2)_100%)]`}>
+        {/* Left Mobile Menu Toggle Button */}
+        {onMobileMenuToggle && (
+          <button
+            type="button"
+            onClick={onMobileMenuToggle}
+            className="md:hidden w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white shrink-0 cursor-pointer"
+            aria-label="Open Navigation Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Search Input Bar (Figma Frame 2147227758) */}
         {showSearch && (
-          <div className="flex-1 max-w-[634px]">
+          <div className="flex-1 max-w-[634px] min-w-0">
             <div className="relative flex items-center h-11 px-3 gap-2.5 rounded-lg bg-white/20 border border-white/10 focus-within:border-white/40 focus-within:bg-white/25 transition-all">
               <Search className="w-5 h-5 text-[#B5C8DB] shrink-0" />
               <input

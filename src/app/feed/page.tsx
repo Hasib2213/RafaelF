@@ -347,15 +347,23 @@ export default function FeedPage() {
     );
   });
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex flex-row overflow-x-hidden font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma: Side Panel - width 240px) */}
-      <FeedSidebar />
+      {/* Left Sidebar (Figma: Side Panel - width 240px, responsive drawer on mobile) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Center Layout Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#0F172A] relative">
         {/* Top Navbar (Figma: Nav - height 80px) */}
-        <FeedNavbar onSearch={setSearchQuery} />
+        <FeedNavbar
+          onSearch={setSearchQuery}
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
+        />
 
         {/* Feed Content (Figma: Frame 2147239907) */}
         <main className="flex-1 px-6 sm:px-8 lg:px-10 py-8 max-w-[1100px] w-full mx-auto flex flex-col gap-6">
