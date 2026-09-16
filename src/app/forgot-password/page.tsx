@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Mail,
   ArrowLeft,
@@ -20,8 +20,11 @@ import {
 import CurioLogo from "@/components/CurioLogo";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromAdmin = searchParams.get("from") === "admin";
+
   const [step, setStep] = useState<"email" | "otp" | "new_password" | "success">("email");
   const [email, setEmail] = useState("");
   const [hasSubmittedEmail, setHasSubmittedEmail] = useState(false);
@@ -364,7 +367,7 @@ export default function ForgotPasswordPage() {
                     {/* Back Button (Frame 2147239918 - width: 280px, height: 44px) */}
                     <button
                       type="button"
-                      onClick={() => router.push("/login")}
+                      onClick={() => router.push(fromAdmin ? "/admin/login" : "/login")}
                       className="flex-1 h-[44px] rounded-lg bg-white/20 hover:bg-white/30 active:scale-[0.99] text-white font-semibold text-base font-['Lato',sans-serif] transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -609,10 +612,14 @@ export default function ForgotPasswordPage() {
                   </div>
 
                   <Link
-                    href={`/login?reset=true&email=${encodeURIComponent(email)}`}
+                    href={
+                      fromAdmin
+                        ? `/admin/login?reset=true&email=${encodeURIComponent(email)}`
+                        : `/login?reset=true&email=${encodeURIComponent(email)}`
+                    }
                     className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:brightness-110 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-900/40 mt-2"
                   >
-                    Proceed to Log In
+                    {fromAdmin ? "Proceed to Admin Log In" : "Proceed to Log In"}
                   </Link>
                 </motion.div>
               )}
@@ -621,6 +628,14 @@ export default function ForgotPasswordPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen w-full bg-[#0F172A]" />}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }
 
