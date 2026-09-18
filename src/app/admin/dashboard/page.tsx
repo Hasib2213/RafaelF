@@ -22,7 +22,9 @@ import {
   TrendingUp,
   X,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  TrendingDown,
+  Menu,
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion, AnimatePresence } from "framer-motion";
@@ -211,10 +213,12 @@ const initialActivities: ActivityItem[] = [
 
 export default function AdminDashboardPage() {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedPlanFilter, setSelectedPlanFilter] = useState<"ALL" | "Free" | "Pro" | "Enterprise">("Free");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTimeframe, setSelectedTimeframe] = useState<"Yearly" | "Monthly" | "Weekly">("Yearly");
-  const [selectedGrowthPeriod, setSelectedGrowthPeriod] = useState("Weekly");
+  const [selectedGrowthPeriod, setSelectedGrowthPeriod] = useState<"Weekly" | "Monthly" | "Yearly">("Weekly");
+  const [isGrowthDropdownOpen, setIsGrowthDropdownOpen] = useState(false);
   const [activeActivityModal, setActiveActivityModal] = useState<ActivityItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -289,14 +293,29 @@ export default function AdminDashboardPage() {
 
   const currentRevenueData = revenueDataMap[selectedTimeframe];
 
+  // Dynamic data mapping for Average Customer Growth
+  const growthDataMap: Record<
+    "Weekly" | "Monthly" | "Yearly",
+    { percentage: number; growthRate: string }
+  > = {
+    Weekly: { percentage: 22, growthRate: "+5.25%" },
+    Monthly: { percentage: 54, growthRate: "+18.40%" },
+    Yearly: { percentage: 78, growthRate: "+42.60%" },
+  };
+
+  const currentGrowthData = growthDataMap[selectedGrowthPeriod];
+  const donutCircumference = 264;
+  const donutStrokeOffset =
+    donutCircumference - (donutCircumference * currentGrowthData.percentage) / 100;
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex flex-col font-['Lato',sans-serif] selection:bg-[#4F39F6] selection:text-white">
       {/* Figma Desktop Canvas Wrapper (1440px target layout) */}
       <div className="flex-1 w-full flex flex-col lg:flex-row relative">
         
-        {/* ================= LEFT SIDE PANEL (240px width) ================= */}
+        {/* ================= DESKTOP LEFT SIDE PANEL (240px width) ================= */}
         <aside
-          className="w-full lg:w-[240px] shrink-0 min-h-screen border-r border-white/20 flex flex-col justify-between p-4 z-40 sticky top-0"
+          className="hidden lg:flex lg:w-[240px] shrink-0 min-h-screen border-r border-white/20 flex-col justify-between p-4 z-40 sticky top-0"
           style={{
             background: "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
           }}
@@ -325,8 +344,8 @@ export default function AdminDashboardPage() {
               </button>
 
               {/* 2. User Management */}
-              <button
-                onClick={() => setActiveNav("users")}
+              <Link
+                href="/admin/dashboard/users"
                 className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
                   activeNav === "users"
                     ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
@@ -335,7 +354,7 @@ export default function AdminDashboardPage() {
               >
                 <Users className="w-5 h-5 text-[#B5C8DB]" />
                 <span className="text-base font-normal font-['Inter',sans-serif]">User Management</span>
-              </button>
+              </Link>
 
               {/* 3. Subscription plan */}
               <button
@@ -403,24 +422,176 @@ export default function AdminDashboardPage() {
           </div>
         </aside>
 
+        {/* ================= MOBILE DRAWER SIDEBAR ================= */}
+        <AnimatePresence>
+          {isMobileSidebarOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 lg:hidden"
+              />
+              {/* Slide Drawer */}
+              <motion.aside
+                initial={{ x: -280 }}
+                animate={{ x: 0 }}
+                exit={{ x: -280 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed top-0 left-0 bottom-0 w-[270px] max-w-[85vw] border-r border-white/20 flex flex-col justify-between p-4 z-50 lg:hidden shadow-2xl overflow-y-auto"
+                style={{
+                  background: "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
+                }}
+              >
+                <div className="flex flex-col gap-6">
+                  <div className="w-full h-16 border-b border-white/20 flex items-center justify-between pb-4 px-1">
+                    <Link href="/" onClick={() => setIsMobileSidebarOpen(false)} className="flex items-center">
+                      <CurioLogo size="sm" />
+                    </Link>
+                    <button
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      aria-label="Close sidebar"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Navigation Menu Buttons */}
+                  <nav className="flex flex-col gap-1 w-full">
+                    <button
+                      onClick={() => {
+                        setActiveNav("dashboard");
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "dashboard"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <DashboardGridIcon className={activeNav === "dashboard" ? "text-white" : "text-[#B5C8DB]"} />
+                      <span className="text-base font-medium">Dashboard Overview</span>
+                    </button>
+
+                    <Link
+                      href="/admin/dashboard/users"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "users"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Users className="w-5 h-5 text-[#B5C8DB]" />
+                      <span className="text-base font-normal font-['Inter',sans-serif]">User Management</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        setActiveNav("subscription");
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "subscription"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <SubscriptionCardIcon className="text-[#B5C8DB]" />
+                      <span className="text-base font-normal font-['Inter',sans-serif]">Subscription plan</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveNav("admin-settings");
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "admin-settings"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Settings className="w-5 h-5 text-[#B5C8DB]" />
+                      <span className="text-base font-normal font-['Inter',sans-serif]">Admin Settings</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveNav("platform-settings");
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "platform-settings"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Sliders className="w-5 h-5 text-[#B5C8DB]" />
+                      <span className="text-base font-normal font-['Inter',sans-serif]">Platform Setting</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveNav("reviews");
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                        activeNav === "reviews"
+                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <MessageSquare className="w-5 h-5 text-[#B5C8DB]" />
+                      <span className="text-base font-normal font-['Inter',sans-serif]">User Reviews</span>
+                    </button>
+                  </nav>
+                </div>
+
+                <div className="pt-8 w-full">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full h-12 rounded-lg bg-white/20 border-l-[3px] border-[#FF5B5B] flex items-center gap-3 px-3 text-white hover:bg-red-500/20 active:scale-[0.99] transition-all cursor-pointer select-none"
+                  >
+                    <LogOut className="w-5 h-5 text-red-400" />
+                    <span className="text-base font-normal text-white">Log Out</span>
+                  </button>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* ================= RIGHT MAIN AREA ================= */}
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Top Header Bar (Nav: 80px height, background #2B2A7D with gradient) */}
           <header
-            className="w-full h-20 border-b border-white/20 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-30 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] backdrop-blur-md"
+            className="w-full h-16 sm:h-20 border-b border-white/20 px-4 sm:px-10 flex items-center justify-between sticky top-0 z-30 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] backdrop-blur-md"
             style={{
               background: "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(79, 57, 246, 0.2) 0%, rgba(43, 127, 255, 0.2) 100%)",
             }}
           >
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-purple-200 uppercase tracking-widest">
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Mobile Hamburger Button */}
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-purple-200 uppercase tracking-wider truncate max-w-[170px] xs:max-w-none">
                 Curio AI Admin Console
               </span>
             </div>
 
             {/* Profile Badge (Frame 2147227759, 135px x 44px) */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/feed"
                 className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition-all"
@@ -429,14 +600,14 @@ export default function AdminDashboardPage() {
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
 
-              <div className="flex items-center justify-center px-2 py-1 rounded-lg bg-white/20 border border-white/10 gap-3">
+              <div className="flex items-center justify-center px-2 py-1 rounded-lg bg-white/20 border border-white/10 gap-2 sm:gap-3">
                 {/* 32px Avatar */}
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center font-bold text-xs text-white shadow-md shrink-0">
                   AH
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-sm font-medium text-white leading-tight">{adminUser.name}</span>
-                  <span className="text-[12px] text-[#D0D0D0] leading-tight font-normal">{adminUser.role}</span>
+                  <span className="text-sm font-medium text-white leading-tight truncate max-w-[90px] sm:max-w-none">{adminUser.name}</span>
+                  <span className="text-[11px] sm:text-[12px] text-[#D0D0D0] leading-tight font-normal">{adminUser.role}</span>
                 </div>
               </div>
             </div>
@@ -583,63 +754,64 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Chart Area (Frame 151: 594px x 250px) */}
-                <div className="flex items-end justify-between gap-3 sm:gap-6 pt-2 relative w-full h-[250px]">
-                  
-                  {/* Y-axis Labels (Frame 149: 55px x 211px) */}
-                  <div className="flex flex-col justify-between text-right text-sm sm:text-base font-normal text-white h-[211px] w-[55px] shrink-0 select-none pb-7 font-['Lato',sans-serif] tracking-[-0.02em]">
-                    <span>100000</span>
-                    <span>50000</span>
-                    <span>10000</span>
-                    <span>1,000</span>
-                    <span>0</span>
-                  </div>
+                <div className="w-full overflow-x-auto pb-1 scrollbar-thin">
+                  <div className="min-w-[320px] flex items-end justify-between gap-2 sm:gap-6 pt-2 relative h-[250px]">
+                    {/* Y-axis Labels (Frame 149: 55px x 211px) */}
+                    <div className="flex flex-col justify-between text-right text-xs sm:text-base font-normal text-white h-[211px] w-[45px] sm:w-[55px] shrink-0 select-none pb-7 font-['Lato',sans-serif] tracking-[-0.02em]">
+                      <span>100000</span>
+                      <span>50000</span>
+                      <span>10000</span>
+                      <span>1,000</span>
+                      <span>0</span>
+                    </div>
 
-                  {/* 7 Bars (Graph of sale performance: 529px x 220px) */}
-                  <div className="flex-1 flex items-end justify-between gap-1 sm:gap-3 h-[220px] relative">
-                    {currentRevenueData.map((bar, idx) => (
-                      <div key={idx} className="flex flex-col items-center justify-end h-full relative group">
-                        
-                        {/* Tooltip Badge with downward polygon arrow (Figma 2020 & 2023 badges) */}
-                        {bar.showDefaultBadge && (
-                          <div className="absolute -top-1 sm:-top-2 flex flex-col items-center z-20 pointer-events-none">
-                            <div className="px-2 py-1 rounded-[5.28px] bg-white/20 backdrop-blur-md text-[11px] font-medium text-white text-center leading-[15px] font-['Manrope',sans-serif] shadow-lg whitespace-nowrap">
-                              <div>{bar.tooltip.split(" ")[0]}</div>
-                              <div className="text-[10px] opacity-90">{bar.tooltip.split(" ")[1] || "Person"}</div>
+                    {/* 7 Bars (Graph of sale performance: 529px x 220px) */}
+                    <div className="flex-1 flex items-end justify-between gap-1 sm:gap-3 h-[220px] relative">
+                      {currentRevenueData.map((bar, idx) => (
+                        <div key={idx} className="flex flex-col items-center justify-end h-full relative group">
+                          
+                          {/* Tooltip Badge with downward polygon arrow (Figma 2020 & 2023 badges) */}
+                          {bar.showDefaultBadge && (
+                            <div className="absolute -top-1 sm:-top-2 flex flex-col items-center z-20 pointer-events-none">
+                              <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[5.28px] bg-white/20 backdrop-blur-md text-[10px] sm:text-[11px] font-medium text-white text-center leading-[13px] sm:leading-[15px] font-['Manrope',sans-serif] shadow-lg whitespace-nowrap">
+                                <div>{bar.tooltip.split(" ")[0]}</div>
+                                <div className="text-[9px] sm:text-[10px] opacity-90">{bar.tooltip.split(" ")[1] || "Person"}</div>
+                              </div>
+                              {/* Downward Caret Polygon */}
+                              <svg width="12" height="7" viewBox="0 0 12 7" fill="none" className="-mt-[1px]">
+                                <path d="M6 7L0 0H12L6 7Z" fill="white" fillOpacity="0.25" />
+                              </svg>
                             </div>
-                            {/* Downward Caret Polygon */}
-                            <svg width="12" height="7" viewBox="0 0 12 7" fill="none" className="-mt-[1px]">
-                              <path d="M6 7L0 0H12L6 7Z" fill="white" fillOpacity="0.25" />
-                            </svg>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Interactive hover tooltip on other bars */}
-                        {!bar.showDefaultBadge && (
-                          <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-20 pointer-events-none">
-                            <div className="px-2 py-0.5 rounded-[5px] bg-white/20 backdrop-blur-md text-[11px] font-medium text-white shadow-lg whitespace-nowrap font-['Manrope',sans-serif]">
-                              {bar.tooltip}
+                          {/* Interactive hover tooltip on other bars */}
+                          {!bar.showDefaultBadge && (
+                            <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-20 pointer-events-none">
+                              <div className="px-2 py-0.5 rounded-[5px] bg-white/20 backdrop-blur-md text-[10px] sm:text-[11px] font-medium text-white shadow-lg whitespace-nowrap font-['Manrope',sans-serif]">
+                                {bar.tooltip}
+                              </div>
+                              <svg width="10" height="5" viewBox="0 0 10 5" fill="none" className="-mt-[1px]">
+                                <path d="M5 5L0 0H10L5 5Z" fill="white" fillOpacity="0.25" />
+                              </svg>
                             </div>
-                            <svg width="10" height="5" viewBox="0 0 10 5" fill="none" className="-mt-[1px]">
-                              <path d="M5 5L0 0H10L5 5Z" fill="white" fillOpacity="0.25" />
-                            </svg>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Bar (Rectangle 4: 55px width, 2px radius, gradient #2B7FFF to #4F39F6) */}
-                        <div
-                          className="w-7 sm:w-[50px] xl:w-[55px] rounded-[2px] transition-all duration-300 group-hover:brightness-125 cursor-pointer shadow-sm shrink-0"
-                          style={{
-                            height: `${bar.height}px`,
-                            background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)",
-                          }}
-                        />
+                          {/* Bar (Rectangle 4: 55px width, 2px radius, gradient #2B7FFF to #4F39F6) */}
+                          <div
+                            className="w-6 sm:w-[50px] xl:w-[55px] rounded-[2px] transition-all duration-300 group-hover:brightness-125 cursor-pointer shadow-sm shrink-0"
+                            style={{
+                              height: `${bar.height}px`,
+                              background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)",
+                            }}
+                          />
 
-                        {/* Year / Day Label (Lato 16px, text-center, color #FFFFFF, 24px height) */}
-                        <span className="h-6 flex items-center justify-center text-xs sm:text-base font-normal text-white text-center font-['Lato',sans-serif] tracking-[-0.02em] mt-2 select-none">
-                          {bar.label}
-                        </span>
-                      </div>
-                    ))}
+                          {/* Year / Day Label (Lato 16px, text-center, color #FFFFFF, 24px height) */}
+                          <span className="h-6 flex items-center justify-center text-xs sm:text-base font-normal text-white text-center font-['Lato',sans-serif] tracking-[-0.02em] mt-2 select-none">
+                            {bar.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -674,10 +846,11 @@ export default function AdminDashboardPage() {
                         r="42"
                         stroke="url(#donutGradient)"
                         strokeWidth="12"
-                        strokeDasharray="264"
-                        strokeDashoffset="190"
+                        strokeDasharray={donutCircumference}
+                        strokeDashoffset={donutStrokeOffset}
                         strokeLinecap="round"
                         fill="none"
+                        className="transition-all duration-700 ease-out"
                       />
                       <defs>
                         <linearGradient id="donutGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -689,26 +862,66 @@ export default function AdminDashboardPage() {
 
                     {/* Center White Disc with Shadow (Ellipse 11) */}
                     <div className="absolute w-24 h-24 rounded-full bg-white shadow-[0px_17px_35px_rgba(0,0,0,0.12)] flex items-center justify-center">
-                      <span className="text-xl font-semibold text-[#1C1C1C] font-['Inter',sans-serif]">22%</span>
+                      <span className="text-xl font-semibold text-[#1C1C1C] font-['Inter',sans-serif] transition-all duration-300">
+                        {currentGrowthData.percentage}%
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Controls: Weekly & +5.25% growth pill */}
-                <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                  <button
-                    onClick={() => setSelectedGrowthPeriod(selectedGrowthPeriod === "Weekly" ? "Monthly" : "Weekly")}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/20 text-sm text-[#FAFAFA] font-normal hover:bg-white/30 transition-all cursor-pointer"
-                  >
-                    <span>{selectedGrowthPeriod}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-white" />
-                  </button>
+                {/* Footer Controls: Weekly/Monthly/Yearly Dropdown & growth pill */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10 relative">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsGrowthDropdownOpen((prev) => !prev)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/20 text-sm text-[#FAFAFA] font-normal hover:bg-white/30 transition-all cursor-pointer border border-white/10"
+                    >
+                      <span>{selectedGrowthPeriod}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-white transition-transform duration-200 ${
+                          isGrowthDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isGrowthDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-20"
+                          onClick={() => setIsGrowthDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 bottom-full mb-2 w-32 bg-[#1B194B] border border-white/20 rounded-lg shadow-2xl py-1 z-30 backdrop-blur-md">
+                          {(["Weekly", "Monthly", "Yearly"] as const).map((period) => (
+                            <button
+                              key={period}
+                              type="button"
+                              onClick={() => {
+                                setSelectedGrowthPeriod(period);
+                                setIsGrowthDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer flex items-center justify-between ${
+                                selectedGrowthPeriod === period
+                                  ? "bg-white/25 text-white font-medium"
+                                  : "text-white/70 hover:text-white hover:bg-white/10"
+                              }`}
+                            >
+                              <span>{period}</span>
+                              {selectedGrowthPeriod === period && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#28F647]" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-white">Users</span>
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#28F647]/20 border border-[#28F647] text-[#28F647] text-sm font-medium">
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#28F647]/20 border border-[#28F647] text-[#28F647] text-sm font-medium transition-all duration-300">
                       <TrendingUp className="w-3.5 h-3.5" />
-                      <span>+5.25%</span>
+                      <span>{currentGrowthData.growthRate}</span>
                     </div>
                   </div>
                 </div>
@@ -735,41 +948,44 @@ export default function AdminDashboardPage() {
                     />
                   </div>
 
-                  {/* Filter Pill Tabs (407px Container: Free Members | Pro Members | Enterprise Members) */}
-                  <div className="flex items-center p-1 rounded-md bg-white/20 border border-white/10 text-sm select-none">
+                  {/* Filter Pill Tabs (Container: Free Members | Pro Members | Enterprise Members) */}
+                  <div className="flex items-center p-1 rounded-md bg-white/20 border border-white/10 text-sm select-none max-w-full overflow-x-auto scrollbar-none shrink-0">
                     <button
                       onClick={() => setSelectedPlanFilter("Free")}
-                      className={`px-3 py-1.5 rounded transition-all cursor-pointer ${
+                      className={`px-2.5 sm:px-3 py-1.5 rounded transition-all cursor-pointer whitespace-nowrap text-xs sm:text-sm ${
                         selectedPlanFilter === "Free"
                           ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-medium shadow"
                           : "text-white/80 hover:text-white"
                       }`}
                     >
-                      Free Members
+                      <span className="hidden sm:inline">Free Members</span>
+                      <span className="sm:hidden">Free</span>
                     </button>
                     <button
                       onClick={() => setSelectedPlanFilter("Pro")}
-                      className={`px-3 py-1.5 rounded transition-all cursor-pointer ${
+                      className={`px-2.5 sm:px-3 py-1.5 rounded transition-all cursor-pointer whitespace-nowrap text-xs sm:text-sm ${
                         selectedPlanFilter === "Pro"
                           ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-medium shadow"
                           : "text-white/80 hover:text-white"
                       }`}
                     >
-                      Pro Members
+                      <span className="hidden sm:inline">Pro Members</span>
+                      <span className="sm:hidden">Pro</span>
                     </button>
                     <button
                       onClick={() => setSelectedPlanFilter("Enterprise")}
-                      className={`px-3 py-1.5 rounded transition-all cursor-pointer ${
+                      className={`px-2.5 sm:px-3 py-1.5 rounded transition-all cursor-pointer whitespace-nowrap text-xs sm:text-sm ${
                         selectedPlanFilter === "Enterprise"
                           ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-medium shadow"
                           : "text-white/80 hover:text-white"
                       }`}
                     >
-                      Enterprise Members
+                      <span className="hidden sm:inline">Enterprise Members</span>
+                      <span className="sm:hidden">Enterprise</span>
                     </button>
                     <button
                       onClick={() => setSelectedPlanFilter("ALL")}
-                      className={`px-2.5 py-1.5 rounded text-xs transition-all cursor-pointer ${
+                      className={`px-2.5 py-1.5 rounded text-xs transition-all cursor-pointer whitespace-nowrap ${
                         selectedPlanFilter === "ALL"
                           ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-medium shadow"
                           : "text-white/60 hover:text-white"
@@ -784,102 +1000,104 @@ export default function AdminDashboardPage() {
 
               {/* Data Table Container (Frame 2147239933) */}
               <div
-                className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-xl"
+                className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-xl overflow-x-auto"
                 style={{
                   background: "linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
                 }}
               >
-                {/* Table Header Row (Frame 2147239437, height 52px, background rgba(43,127,255,0.3)) */}
-                <div className="w-full h-[52px] bg-[#2B7FFF]/30 px-4 sm:px-6 flex items-center justify-between text-xs sm:text-sm font-semibold text-white uppercase tracking-wider select-none border-b border-white/10">
-                  <div className="w-[180px] text-left">User</div>
-                  <div className="w-[140px] text-left hidden md:block">Email</div>
-                  <div className="w-[110px] text-left hidden sm:block">Plan</div>
-                  <div className="flex-1 text-left px-2">Activity</div>
-                  <div className="w-[180px] text-left hidden lg:block">Date / Time</div>
-                  <div className="w-[72px] text-center">Action</div>
-                </div>
+                <div className="min-w-[620px]">
+                  {/* Table Header Row (Frame 2147239437, height 52px, background rgba(43,127,255,0.3)) */}
+                  <div className="w-full h-[52px] bg-[#2B7FFF]/30 px-4 sm:px-6 flex items-center justify-between text-xs sm:text-sm font-semibold text-white uppercase tracking-wider select-none border-b border-white/10">
+                    <div className="w-[180px] text-left">User</div>
+                    <div className="w-[140px] text-left hidden md:block">Email</div>
+                    <div className="w-[110px] text-left hidden sm:block">Plan</div>
+                    <div className="flex-1 text-left px-2">Activity</div>
+                    <div className="w-[180px] text-left hidden lg:block">Date / Time</div>
+                    <div className="w-[72px] text-center">Action</div>
+                  </div>
 
-                {/* Table Rows */}
-                <div className="divide-y divide-white/10">
-                  {filteredActivities.length === 0 ? (
-                    <div className="py-12 text-center text-[#D0D0D0] text-sm">
-                      No matching activity records found. Try adjusting your search query or filter tab.
-                    </div>
-                  ) : (
-                    filteredActivities.map((row, idx) => (
-                      <div
-                        key={row.id}
-                        className={`w-full min-h-[68px] px-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-white/10 ${
-                          idx % 2 === 1 ? "bg-white/[0.05]" : "bg-transparent"
-                        }`}
-                      >
-                        {/* User Col */}
-                        <div className="w-[180px] flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${row.avatarColor} flex items-center justify-center text-xs font-bold text-white shrink-0`}>
-                            {row.name.charAt(0)}
-                          </div>
-                          <span className="text-sm sm:text-base font-normal text-white truncate">{row.name}</span>
-                        </div>
-
-                        {/* Email Col */}
-                        <div className="w-[140px] hidden md:block text-sm text-[#D0D0D0] truncate">
-                          {row.email}
-                        </div>
-
-                        {/* Plan Col */}
-                        <div className="w-[110px] hidden sm:block">
-                          <span
-                            className={`px-2.5 py-1 rounded text-xs font-medium uppercase tracking-wide ${
-                              row.plan === "Enterprise"
-                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                                : row.plan === "Pro"
-                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                                : "bg-white/10 text-white/80 border border-white/20"
-                            }`}
-                          >
-                            {row.plan}
-                          </span>
-                        </div>
-
-                        {/* Activity Title & Description Col */}
-                        <div className="flex-1 flex flex-col justify-center px-2 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white truncate">{row.type}</span>
-                            {row.rating && (
-                              <div className="flex items-center gap-0.5 text-amber-400">
-                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                <span className="text-xs font-bold text-white">{row.rating}/5</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-xs text-[#D0D0D0] truncate mt-0.5">{row.description}</span>
-                        </div>
-
-                        {/* Date Col */}
-                        <div className="w-[180px] hidden lg:block text-sm text-[#D0D0D0]">
-                          {row.dateTime}
-                        </div>
-
-                        {/* Action Eye Col */}
-                        <div className="w-[72px] flex items-center justify-center">
-                          <button
-                            onClick={() => setActiveActivityModal(row)}
-                            className="w-8 h-8 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-[#B5C8DB] hover:text-white transition-all cursor-pointer"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </div>
+                  {/* Table Rows */}
+                  <div className="divide-y divide-white/10">
+                    {filteredActivities.length === 0 ? (
+                      <div className="py-12 text-center text-[#D0D0D0] text-sm">
+                        No matching activity records found. Try adjusting your search query or filter tab.
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      filteredActivities.map((row, idx) => (
+                        <div
+                          key={row.id}
+                          className={`w-full min-h-[68px] px-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-white/10 ${
+                            idx % 2 === 1 ? "bg-white/[0.05]" : "bg-transparent"
+                          }`}
+                        >
+                          {/* User Col */}
+                          <div className="w-[180px] flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${row.avatarColor} flex items-center justify-center text-xs font-bold text-white shrink-0`}>
+                              {row.name.charAt(0)}
+                            </div>
+                            <span className="text-sm sm:text-base font-normal text-white truncate">{row.name}</span>
+                          </div>
+
+                          {/* Email Col */}
+                          <div className="w-[140px] hidden md:block text-sm text-[#D0D0D0] truncate">
+                            {row.email}
+                          </div>
+
+                          {/* Plan Col */}
+                          <div className="w-[110px] hidden sm:block">
+                            <span
+                              className={`px-2.5 py-1 rounded text-xs font-medium uppercase tracking-wide ${
+                                row.plan === "Enterprise"
+                                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                  : row.plan === "Pro"
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                  : "bg-white/10 text-white/80 border border-white/20"
+                              }`}
+                            >
+                              {row.plan}
+                            </span>
+                          </div>
+
+                          {/* Activity Title & Description Col */}
+                          <div className="flex-1 flex flex-col justify-center px-2 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white truncate">{row.type}</span>
+                              {row.rating && (
+                                <div className="flex items-center gap-0.5 text-amber-400">
+                                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                  <span className="text-xs font-bold text-white">{row.rating}/5</span>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs text-[#D0D0D0] truncate mt-0.5">{row.description}</span>
+                          </div>
+
+                          {/* Date Col */}
+                          <div className="w-[180px] hidden lg:block text-sm text-[#D0D0D0]">
+                            {row.dateTime}
+                          </div>
+
+                          {/* Action Eye Col */}
+                          <div className="w-[72px] flex items-center justify-center gap-1.5">
+                            <Link
+                              href="/admin/dashboard/user-details"
+                              className="w-8 h-8 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-[#B5C8DB] hover:text-white transition-all cursor-pointer"
+                              title="View Full User Details (Desktop - 23)"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Pagination Footer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 text-sm text-white">
                 {/* Result count */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
                   <span className="font-medium text-white">Result</span>
                   <div className="relative">
                     <select
@@ -896,19 +1114,19 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Pagination Controls */}
-                <div className="flex items-center gap-2 select-none">
+                <div className="flex items-center gap-1.5 sm:gap-2 select-none flex-wrap justify-center">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-sm flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer disabled:opacity-40"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span>Previous</span>
+                    <span className="hidden xs:inline">Previous</span>
                   </button>
 
                   <button
                     onClick={() => setCurrentPage(1)}
-                    className={`w-8 h-8 rounded-md flex items-center justify-center text-sm font-medium cursor-pointer ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
                       currentPage === 1
                         ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
                         : "bg-white/20 hover:bg-white/30 text-white"
@@ -919,7 +1137,7 @@ export default function AdminDashboardPage() {
 
                   <button
                     onClick={() => setCurrentPage(2)}
-                    className={`w-8 h-8 rounded-md flex items-center justify-center text-sm font-medium cursor-pointer ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
                       currentPage === 2
                         ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
                         : "bg-white/20 hover:bg-white/30 text-white"
@@ -930,7 +1148,7 @@ export default function AdminDashboardPage() {
 
                   <button
                     onClick={() => setCurrentPage(3)}
-                    className={`w-8 h-8 rounded-md flex items-center justify-center text-sm font-medium cursor-pointer ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
                       currentPage === 3
                         ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
                         : "bg-white/20 hover:bg-white/30 text-white"
@@ -939,13 +1157,13 @@ export default function AdminDashboardPage() {
                     3
                   </button>
 
-                  <span className="text-white/60 px-1">...</span>
+                  <span className="text-white/60 px-0.5 sm:px-1">...</span>
 
                   <button
                     onClick={() => setCurrentPage(Math.min(10, currentPage + 1))}
-                    className="px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-sm flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer"
                   >
-                    <span>Next</span>
+                    <span className="hidden xs:inline">Next</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1004,19 +1222,17 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => setActiveActivityModal(null)}
-                  className="px-5 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-all cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-all cursor-pointer"
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    alert(`Audit log verified for ${activeActivityModal.name}.`);
-                    setActiveActivityModal(null);
-                  }}
-                  className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-semibold text-sm hover:brightness-110 active:scale-95 transition-all shadow-md cursor-pointer"
+                <Link
+                  href="/admin/dashboard/user-details"
+                  className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white font-semibold text-sm hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-2"
                 >
-                  Verify Audit
-                </button>
+                  <span>View User Details</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
               </div>
             </motion.div>
           </div>
