@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import CurioLogo from "@/components/CurioLogo";
+import LogoutModal from "@/components/feed/LogoutModal";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -87,7 +88,7 @@ function HamburgerIcon({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent({ onClose, onLogoutRequest }: { onClose?: () => void; onLogoutRequest?: () => void }) {
   const sidebarBg = "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43,127,255,0.2) 0%, rgba(79,57,246,0.2) 100%)";
   return (
     <>
@@ -135,12 +136,17 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Log Out */}
       <div className="w-full pt-4 shrink-0">
-        <Link href="/admin/login"
-          className="w-full h-12 rounded-lg flex items-center gap-3 px-3 text-white hover:bg-red-500/20 transition-all select-none cursor-pointer"
+        <button
+          type="button"
+          onClick={() => {
+            if (onClose) onClose();
+            if (onLogoutRequest) onLogoutRequest();
+          }}
+          className="w-full h-12 rounded-lg flex items-center gap-3 px-3 text-white hover:bg-red-500/20 active:scale-[0.99] transition-all select-none cursor-pointer text-left"
           style={{ background: "rgba(255,255,255,0.2)", borderLeft: "3px solid #FF5B5B" }}>
           <SideNavLogoutIcon className="w-5 h-5 text-red-400 shrink-0" />
           <span className="font-['Lato'] font-normal text-[16px] tracking-[-0.02em] text-white">Log Out</span>
-        </Link>
+        </button>
       </div>
     </>
   );
@@ -152,11 +158,19 @@ export default function UserManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(10);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberPlan, setNewMemberPlan] = useState<PlanType>("Pro Member");
   const [extraRows, setExtraRows] = useState<UserActivityRow[]>([]);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("curio_admin_user");
+      window.location.href = "/admin/login";
+    }
+  };
 
   const baseRows = useMemo<UserActivityRow[]>(() => {
     const map: Record<PlanType, UserActivityRow[]> = {
@@ -224,7 +238,7 @@ export default function UserManagementPage() {
         className="hidden lg:flex w-[240px] shrink-0 border-r border-white/20 flex-col justify-between p-4 sticky top-0 h-screen z-30"
         style={{ background: sidebarBg }}
       >
-        <SidebarContent />
+        <SidebarContent onLogoutRequest={() => setIsLogoutModalOpen(true)} />
       </aside>
 
       {/* Mobile drawer */}
@@ -234,7 +248,10 @@ export default function UserManagementPage() {
         }`}
         style={{ background: sidebarBg }}
       >
-        <SidebarContent onClose={() => setSidebarOpen(false)} />
+        <SidebarContent
+          onClose={() => setSidebarOpen(false)}
+          onLogoutRequest={() => setIsLogoutModalOpen(true)}
+        />
       </aside>
 
       {/* Main column */}
@@ -378,9 +395,9 @@ export default function UserManagementPage() {
                 </div>
 
                 {/* View All Users */}
-                <button
+                <Link
                   id="btn-view-all-users"
-                  onClick={() => setShowAddModal(true)}
+                  href="/admin/dashboard/users/all-users"
                   className="h-10 flex flex-row justify-center items-center cursor-pointer font-['Lato'] font-semibold text-[14px] sm:text-[16px] leading-[150%] text-white transition-all shadow-md active:scale-95 hover:brightness-110 shrink-0 whitespace-nowrap"
                   style={{
                     padding: "0px 12px",
@@ -390,7 +407,7 @@ export default function UserManagementPage() {
                   }}
                 >
                   View All Users
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -607,6 +624,13 @@ export default function UserManagementPage() {
           </div>
         </div>
       )}
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+        title="Are you sure you want to Log out?"
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import LogoutModal from "@/components/feed/LogoutModal";
 import {
   CaretDownIcon,
   CaretLeftIcon,
@@ -156,11 +157,19 @@ const AUDIT_LOGS: AuditLogEntry[] = [
 
 export default function CompleteActivityAuditPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isExporting, setIsExporting] = useState(false);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("curio_admin_user");
+      window.location.href = "/admin/login";
+    }
+  };
 
   // Filter logs by search term & category
   const filteredLogs = useMemo(() => {
@@ -274,11 +283,7 @@ export default function CompleteActivityAuditPage() {
         {/* Log Out Button */}
         <div className="w-full pt-4 border-t border-white/10">
           <button
-            onClick={() => {
-              if (confirm("Are you sure you want to log out of Admin Panel?")) {
-                window.location.href = "/login";
-              }
-            }}
+            onClick={() => setIsLogoutModalOpen(true)}
             className="w-full h-12 flex items-center gap-3 pl-3 pr-4 rounded-lg bg-white/20 border-l-[3px] border-[#FF5B5B] text-white hover:bg-white/[0.28] transition-all cursor-pointer"
           >
             <SideNavLogoutIcon />
@@ -383,9 +388,8 @@ export default function CompleteActivityAuditPage() {
               <div className="w-full pt-4 border-t border-white/10">
                 <button
                   onClick={() => {
-                    if (confirm("Are you sure you want to log out of Admin Panel?")) {
-                      window.location.href = "/login";
-                    }
+                    setIsMobileSidebarOpen(false);
+                    setIsLogoutModalOpen(true);
                   }}
                   className="w-full h-12 flex items-center gap-3 pl-3 pr-4 rounded-lg bg-white/20 border-l-[3px] border-[#FF5B5B] text-white hover:bg-white/[0.28] transition-all cursor-pointer"
                 >
@@ -838,6 +842,13 @@ export default function CompleteActivityAuditPage() {
           </section>
         </main>
       </div>
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+        title="Are you sure you want to Log out?"
+      />
     </div>
   );
 }

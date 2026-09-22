@@ -27,6 +27,7 @@ import {
   Menu,
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
+import LogoutModal from "@/components/feed/LogoutModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Custom SVG Icons matching exact Figma vectors
@@ -214,6 +215,7 @@ const initialActivities: ActivityItem[] = [
 export default function AdminDashboardPage() {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [selectedPlanFilter, setSelectedPlanFilter] = useState<"ALL" | "Free" | "Pro" | "Enterprise">("Free");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTimeframe, setSelectedTimeframe] = useState<"Yearly" | "Monthly" | "Weekly">("Yearly");
@@ -413,7 +415,7 @@ export default function AdminDashboardPage() {
           {/* Bottom Log Out Button (Frame 2147239891) */}
           <div className="pt-8 w-full">
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               className="w-full h-12 rounded-lg bg-white/20 border-l-[3px] border-[#FF5B5B] flex items-center gap-3 px-3 text-white hover:bg-red-500/20 active:scale-[0.99] transition-all cursor-pointer select-none"
             >
               <LogOut className="w-5 h-5 text-red-400" />
@@ -553,7 +555,10 @@ export default function AdminDashboardPage() {
 
                 <div className="pt-8 w-full">
                   <button
-                    onClick={handleLogout}
+                    onClick={() => {
+                      setIsMobileSidebarOpen(false);
+                      setIsLogoutModalOpen(true);
+                    }}
                     className="w-full h-12 rounded-lg bg-white/20 border-l-[3px] border-[#FF5B5B] flex items-center gap-3 px-3 text-white hover:bg-red-500/20 active:scale-[0.99] transition-all cursor-pointer select-none"
                   >
                     <LogOut className="w-5 h-5 text-red-400" />
@@ -1080,9 +1085,9 @@ export default function AdminDashboardPage() {
                           {/* Action Eye Col */}
                           <div className="w-[72px] flex items-center justify-center gap-1.5">
                             <Link
-                              href="/admin/dashboard/user-details"
+                              href={`/admin/dashboard/user-details?name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}`}
                               className="w-8 h-8 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-[#B5C8DB] hover:text-white transition-all cursor-pointer"
-                              title="View Full User Details (Desktop - 23)"
+                              title="View Full User Details"
                             >
                               <Eye className="w-4 h-4" />
                             </Link>
@@ -1238,6 +1243,14 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+        title="Are you sure you want to Log out?"
+      />
     </div>
   );
 }
