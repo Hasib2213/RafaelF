@@ -247,7 +247,7 @@ export default function CompleteActivityAuditPage() {
             </Link>
 
             <Link
-              href="/admin/dashboard"
+              href="/admin/dashboard/subscription-plan"
               className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
             >
               <SideNavSubscriptionIcon />
@@ -263,7 +263,7 @@ export default function CompleteActivityAuditPage() {
             </Link>
 
             <Link
-              href="/admin/dashboard"
+              href="/admin/dashboard/platform-setting"
               className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
             >
               <SideNavPlatformSettingIcon />
@@ -271,7 +271,7 @@ export default function CompleteActivityAuditPage() {
             </Link>
 
             <Link
-              href="/admin/dashboard"
+              href="/admin/dashboard/user-reviews"
               className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
             >
               <SideNavReviewsIcon />
@@ -348,7 +348,7 @@ export default function CompleteActivityAuditPage() {
                   </Link>
 
                   <Link
-                    href="/admin/dashboard"
+                    href="/admin/dashboard/subscription-plan"
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
                   >
@@ -366,7 +366,7 @@ export default function CompleteActivityAuditPage() {
                   </Link>
 
                   <Link
-                    href="/admin/dashboard"
+                    href="/admin/dashboard/platform-setting"
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
                   >
@@ -375,7 +375,7 @@ export default function CompleteActivityAuditPage() {
                   </Link>
 
                   <Link
-                    href="/admin/dashboard"
+                    href="/admin/dashboard/user-reviews"
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
                   >

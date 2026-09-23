@@ -173,25 +173,37 @@ function UserDetailsContent() {
               <span className="font-['Lato'] font-medium text-base">User Management</span>
             </Link>
 
-            {[
-              { id: "subscriptions", Icon: SideNavSubscriptionIcon, label: "Subscription plan" },
-              { id: "admin-settings", Icon: SideNavAdminSettingsIcon, label: "Admin Settings" },
-              { id: "platform-settings", Icon: SideNavPlatformSettingIcon, label: "Platform Setting" },
-              { id: "reviews", Icon: SideNavReviewsIcon, label: "User Reviews" },
-            ].map(({ id, Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none cursor-pointer ${
-                  activeTab === id
-                    ? "bg-white/20 border-l-4 border-[#2563EB] text-white"
-                    : "text-[#B5C8DB] hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Icon />
-                <span className="font-['Lato'] font-normal text-base">{label}</span>
-              </button>
-            ))}
+            <Link
+              href="/admin/dashboard/subscription-plan"
+              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none cursor-pointer"
+            >
+              <SideNavSubscriptionIcon />
+              <span className="font-['Lato'] font-normal text-base">Subscription plan</span>
+            </Link>
+
+            <button
+              type="button"
+              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none cursor-pointer text-left"
+            >
+              <SideNavAdminSettingsIcon />
+              <span className="font-['Lato'] font-normal text-base">Admin Settings</span>
+            </button>
+
+            <Link
+              href="/admin/dashboard/platform-setting"
+              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none"
+            >
+              <SideNavPlatformSettingIcon />
+              <span className="font-['Lato'] font-normal text-base">Platform Setting</span>
+            </Link>
+
+            <Link
+              href="/admin/dashboard/user-reviews"
+              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none"
+            >
+              <SideNavReviewsIcon />
+              <span className="font-['Lato'] font-normal text-base">User Reviews</span>
+            </Link>
           </nav>
         </div>
 
@@ -262,28 +274,39 @@ function UserDetailsContent() {
                     <span className="font-['Lato'] font-medium text-base">User Management</span>
                   </Link>
 
-                  {[
-                    { id: "subscriptions", Icon: SideNavSubscriptionIcon, label: "Subscription plan" },
-                    { id: "admin-settings", Icon: SideNavAdminSettingsIcon, label: "Admin Settings" },
-                    { id: "platform-settings", Icon: SideNavPlatformSettingIcon, label: "Platform Setting" },
-                    { id: "reviews", Icon: SideNavReviewsIcon, label: "User Reviews" },
-                  ].map(({ id, Icon, label }) => (
-                    <button
-                      key={id}
-                      onClick={() => {
-                        setActiveTab(id);
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className={`w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none cursor-pointer ${
-                        activeTab === id
-                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white"
-                          : "text-[#B5C8DB] hover:text-white hover:bg-white/10"
-                      }`}
-                    >
-                      <Icon />
-                      <span className="font-['Lato'] font-normal text-base">{label}</span>
-                    </button>
-                  ))}
+                  <Link
+                    href="/admin/dashboard/subscription-plan"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none"
+                  >
+                    <SideNavSubscriptionIcon />
+                    <span className="font-['Lato'] font-normal text-base">Subscription plan</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none cursor-pointer text-[#B5C8DB] hover:text-white hover:bg-white/10"
+                  >
+                    <SideNavAdminSettingsIcon />
+                    <span className="font-['Lato'] font-normal text-base">Admin Settings</span>
+                  </button>
+
+                  <Link
+                    href="/admin/dashboard/platform-setting"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none text-[#B5C8DB] hover:text-white hover:bg-white/10"
+                  >
+                    <SideNavPlatformSettingIcon />
+                    <span className="font-['Lato'] font-normal text-base">Platform Setting</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/dashboard/user-reviews"
+                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all select-none text-[#B5C8DB] hover:text-white hover:bg-white/10"
+                  >
+                    <SideNavReviewsIcon />
+                    <span className="font-['Lato'] font-normal text-base">User Reviews</span>
+                  </Link>
                 </nav>
               </div>
 

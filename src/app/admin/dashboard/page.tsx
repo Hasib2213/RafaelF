@@ -359,17 +359,13 @@ export default function AdminDashboardPage() {
               </Link>
 
               {/* 3. Subscription plan */}
-              <button
-                onClick={() => setActiveNav("subscription")}
-                className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                  activeNav === "subscription"
-                    ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
-                }`}
+              <Link
+                href="/admin/dashboard/subscription-plan"
+                className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
               >
                 <SubscriptionCardIcon className="text-[#B5C8DB]" />
                 <span className="text-base font-normal font-['Inter',sans-serif]">Subscription plan</span>
-              </button>
+              </Link>
 
               {/* 4. Admin Settings */}
               <button
@@ -385,22 +381,18 @@ export default function AdminDashboardPage() {
               </button>
 
               {/* 5. Platform Setting */}
-              <button
-                onClick={() => setActiveNav("platform-settings")}
-                className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                  activeNav === "platform-settings"
-                    ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
-                }`}
+              <Link
+                href="/admin/dashboard/platform-setting"
+                className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
               >
                 <Sliders className="w-5 h-5 text-[#B5C8DB]" />
                 <span className="text-base font-normal font-['Inter',sans-serif]">Platform Setting</span>
-              </button>
+              </Link>
 
               {/* 6. User Reviews */}
-              <button
-                onClick={() => setActiveNav("reviews")}
-                className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+              <Link
+                href="/admin/dashboard/user-reviews"
+                className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all select-none ${
                   activeNav === "reviews"
                     ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
                     : "text-white/80 hover:text-white hover:bg-white/10"
@@ -408,7 +400,7 @@ export default function AdminDashboardPage() {
               >
                 <MessageSquare className="w-5 h-5 text-[#B5C8DB]" />
                 <span className="text-base font-normal font-['Inter',sans-serif]">User Reviews</span>
-              </button>
+              </Link>
             </nav>
           </div>
 
@@ -491,20 +483,14 @@ export default function AdminDashboardPage() {
                       <span className="text-base font-normal font-['Inter',sans-serif]">User Management</span>
                     </Link>
 
-                    <button
-                      onClick={() => {
-                        setActiveNav("subscription");
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                        activeNav === "subscription"
-                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                          : "text-white/80 hover:text-white hover:bg-white/10"
-                      }`}
+                    <Link
+                      href="/admin/dashboard/subscription-plan"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
                     >
                       <SubscriptionCardIcon className="text-[#B5C8DB]" />
                       <span className="text-base font-normal font-['Inter',sans-serif]">Subscription plan</span>
-                    </button>
+                    </Link>
 
                     <button
                       onClick={() => {
@@ -521,27 +507,19 @@ export default function AdminDashboardPage() {
                       <span className="text-base font-normal font-['Inter',sans-serif]">Admin Settings</span>
                     </button>
 
-                    <button
-                      onClick={() => {
-                        setActiveNav("platform-settings");
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                        activeNav === "platform-settings"
-                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                          : "text-white/80 hover:text-white hover:bg-white/10"
-                      }`}
+                    <Link
+                      href="/admin/dashboard/platform-setting"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
                     >
                       <Sliders className="w-5 h-5 text-[#B5C8DB]" />
                       <span className="text-base font-normal font-['Inter',sans-serif]">Platform Setting</span>
-                    </button>
+                    </Link>
 
-                    <button
-                      onClick={() => {
-                        setActiveNav("reviews");
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
+                    <Link
+                      href="/admin/dashboard/user-reviews"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all select-none ${
                         activeNav === "reviews"
                           ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
                           : "text-white/80 hover:text-white hover:bg-white/10"
@@ -549,7 +527,7 @@ export default function AdminDashboardPage() {
                     >
                       <MessageSquare className="w-5 h-5 text-[#B5C8DB]" />
                       <span className="text-base font-normal font-['Inter',sans-serif]">User Reviews</span>
-                    </button>
+                    </Link>
                   </nav>
                 </div>
 
