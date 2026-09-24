@@ -368,17 +368,13 @@ export default function AdminDashboardPage() {
               </Link>
 
               {/* 4. Admin Settings */}
-              <button
-                onClick={() => setActiveNav("admin-settings")}
-                className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                  activeNav === "admin-settings"
-                    ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
-                }`}
+              <Link
+                href="/admin/dashboard/admin-settings"
+                className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
               >
                 <Settings className="w-5 h-5 text-[#B5C8DB]" />
                 <span className="text-base font-normal font-['Inter',sans-serif]">Admin Settings</span>
-              </button>
+              </Link>
 
               {/* 5. Platform Setting */}
               <Link
@@ -492,20 +488,14 @@ export default function AdminDashboardPage() {
                       <span className="text-base font-normal font-['Inter',sans-serif]">Subscription plan</span>
                     </Link>
 
-                    <button
-                      onClick={() => {
-                        setActiveNav("admin-settings");
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className={`w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left ${
-                        activeNav === "admin-settings"
-                          ? "bg-white/20 border-l-4 border-[#2563EB] text-white font-medium shadow-sm"
-                          : "text-white/80 hover:text-white hover:bg-white/10"
-                      }`}
+                    <Link
+                      href="/admin/dashboard/admin-settings"
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="w-full h-12 rounded-lg flex items-center gap-3 px-3 transition-all cursor-pointer select-none text-left text-white/80 hover:text-white hover:bg-white/10"
                     >
                       <Settings className="w-5 h-5 text-[#B5C8DB]" />
                       <span className="text-base font-normal font-['Inter',sans-serif]">Admin Settings</span>
-                    </button>
+                    </Link>
 
                     <Link
                       href="/admin/dashboard/platform-setting"
@@ -1063,7 +1053,7 @@ export default function AdminDashboardPage() {
                           {/* Action Eye Col */}
                           <div className="w-[72px] flex items-center justify-center gap-1.5">
                             <Link
-                              href={`/admin/dashboard/user-details?name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}`}
+                              href={`/admin/dashboard/user-details?name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.plan)}`}
                               className="w-8 h-8 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-[#B5C8DB] hover:text-white transition-all cursor-pointer"
                               title="View Full User Details"
                             >

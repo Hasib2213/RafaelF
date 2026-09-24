@@ -509,14 +509,14 @@ export default function UserReviewsPage() {
         <span className="font-['Lato'] font-normal text-[16px] text-white">Subscription plan</span>
       </Link>
 
-      <button
-        type="button"
+      <Link
+        href="/admin/dashboard/admin-settings"
         {...(mobile ? { onClick: () => setIsMobileSidebarOpen(false) } : {})}
-        className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none cursor-pointer text-left"
+        className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none"
       >
         <SideNavAdminSettingsIcon className="w-5 h-5 text-[#B5C8DB] shrink-0" />
         <span className="font-['Lato'] font-normal text-[16px] text-white">Admin Settings</span>
-      </button>
+      </Link>
 
       <Link
         href="/admin/dashboard/platform-setting"
@@ -659,7 +659,8 @@ export default function UserReviewsPage() {
               }}
             >
               <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md">
-                AH
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/admin-avatar.jpg" alt="Admin" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col text-left min-w-0">
                 <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-white truncate -my-0.5">

@@ -255,7 +255,7 @@ export default function CompleteActivityAuditPage() {
             </Link>
 
             <Link
-              href="/admin/dashboard"
+              href="/admin/dashboard/admin-settings"
               className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
             >
               <SideNavAdminSettingsIcon />
@@ -357,7 +357,7 @@ export default function CompleteActivityAuditPage() {
                   </Link>
 
                   <Link
-                    href="/admin/dashboard"
+                    href="/admin/dashboard/admin-settings"
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all"
                   >

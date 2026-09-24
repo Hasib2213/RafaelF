@@ -181,13 +181,13 @@ function UserDetailsContent() {
               <span className="font-['Lato'] font-normal text-base">Subscription plan</span>
             </Link>
 
-            <button
-              type="button"
-              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none cursor-pointer text-left"
+            <Link
+              href="/admin/dashboard/admin-settings"
+              className="w-full h-12 flex items-center gap-3 px-4 rounded-lg text-[#B5C8DB] hover:text-white hover:bg-white/10 transition-all select-none"
             >
               <SideNavAdminSettingsIcon />
               <span className="font-['Lato'] font-normal text-base">Admin Settings</span>
-            </button>
+            </Link>
 
             <Link
               href="/admin/dashboard/platform-setting"
@@ -283,13 +283,14 @@ function UserDetailsContent() {
                     <span className="font-['Lato'] font-normal text-base">Subscription plan</span>
                   </Link>
 
-                  <button
-                    type="button"
-                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none cursor-pointer text-[#B5C8DB] hover:text-white hover:bg-white/10"
+                  <Link
+                    href="/admin/dashboard/admin-settings"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="w-full h-12 flex items-center gap-3 px-4 rounded-lg transition-all text-left select-none text-[#B5C8DB] hover:text-white hover:bg-white/10"
                   >
                     <SideNavAdminSettingsIcon />
                     <span className="font-['Lato'] font-normal text-base">Admin Settings</span>
-                  </button>
+                  </Link>
 
                   <Link
                     href="/admin/dashboard/platform-setting"

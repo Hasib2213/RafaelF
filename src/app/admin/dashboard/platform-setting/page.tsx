@@ -160,13 +160,13 @@ export default function PlatformSettingPage() {
               <span className="font-['Lato'] font-normal text-[16px] text-white">Subscription plan</span>
             </Link>
 
-            <button
-              type="button"
-              className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none cursor-pointer text-left"
+            <Link
+              href="/admin/dashboard/admin-settings"
+              className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none"
             >
               <SideNavAdminSettingsIcon className="w-5 h-5 text-[#B5C8DB] shrink-0" />
               <span className="font-['Lato'] font-normal text-[16px] text-white">Admin Settings</span>
-            </button>
+            </Link>
 
             {/* Platform Setting - ACTIVE */}
             <div
@@ -261,14 +261,14 @@ export default function PlatformSettingPage() {
                     <span className="font-['Lato'] font-normal text-[16px] text-white">Subscription plan</span>
                   </Link>
 
-                  <button
-                    type="button"
+                  <Link
+                    href="/admin/dashboard/admin-settings"
                     onClick={() => setIsMobileSidebarOpen(false)}
-                    className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none cursor-pointer text-left"
+                    className="w-full h-12 rounded-lg flex items-center gap-3 px-4 hover:bg-white/10 transition-all select-none"
                   >
                     <SideNavAdminSettingsIcon className="w-5 h-5 text-[#B5C8DB] shrink-0" />
                     <span className="font-['Lato'] font-normal text-[16px] text-white">Admin Settings</span>
-                  </button>
+                  </Link>
 
                   {/* Active Platform Setting */}
                   <div
