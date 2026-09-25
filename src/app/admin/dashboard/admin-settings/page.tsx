@@ -210,7 +210,74 @@ const INITIAL_SUSPENDED_USERS: SuspendedUser[] = [
 type TabType = "admin-info" | "suspended-users" | "admin-management";
 type MemberTier = "Free" | "Pro" | "Enterprise";
 
+export interface AdminUser {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  status: "Active" | "Inactive";
+}
+
+const INITIAL_ADMIN_USERS: AdminUser[] = [
+  {
+    id: "admin-1",
+    name: "Rob Stark",
+    role: "Admin",
+    email: "robstark089@gmail.com",
+    status: "Active",
+  },
+  {
+    id: "admin-2",
+    name: "Jenny Wilson",
+    role: "Super Admin",
+    email: "jenny.wilson@curio.ai",
+    status: "Active",
+  },
+  {
+    id: "admin-3",
+    name: "Devon Lane",
+    role: "Editor",
+    email: "devon.lane@curio.ai",
+    status: "Active",
+  },
+  {
+    id: "admin-4",
+    name: "Cody Fisher",
+    role: "Manager",
+    email: "cody.fisher@curio.ai",
+    status: "Active",
+  },
+  {
+    id: "admin-5",
+    name: "Jane Cooper",
+    role: "Admin",
+    email: "jane.cooper@curio.ai",
+    status: "Active",
+  },
+  {
+    id: "admin-6",
+    name: "Esther Howard",
+    role: "Editor",
+    email: "esther.howard@curio.ai",
+    status: "Active",
+  },
+  {
+    id: "admin-7",
+    name: "Cameron Williamson",
+    role: "Admin",
+    email: "cameron.w@curio.ai",
+    status: "Active",
+  },
+];
+
 const suspendedGridCols = "grid-cols-[180px_130px_140px_minmax(180px,1fr)_160px_72px_140px]";
+const adminGridCols = "grid-cols-[180px_160px_minmax(220px,1fr)_120px_130px]";
+const adminTableCardBg =
+  "linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)";
+const adminRowOddBg =
+  "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)";
+const adminRowEvenBg =
+  "linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)";
 
 /* ================================================================
    PAGE COMPONENT
@@ -242,6 +309,44 @@ export default function AdminSettingsPage() {
   const [suspendedPage, setSuspendedPage] = useState(1);
   const [userToUnsuspend, setUserToUnsuspend] = useState<SuspendedUser | null>(null);
   const [previewUser, setPreviewUser] = useState<SuspendedUser | null>(null);
+
+  // Admin Management state
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminToRemove, setAdminToRemove] = useState<AdminUser | null>(null);
+  const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
+  const [newAdminForm, setNewAdminForm] = useState({
+    name: "",
+    email: "",
+    role: "Admin",
+  });
+
+  const handleConfirmRemoveAdmin = () => {
+    if (!adminToRemove) return;
+    const targetName = adminToRemove.name;
+    setAdminUsers((prev) => prev.filter((a) => a.id !== adminToRemove.id));
+    showToast(`Admin ${targetName} removed successfully!`);
+    setAdminToRemove(null);
+  };
+
+  const handleAddAdminSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminForm.name.trim() || !newAdminForm.email.trim()) {
+      showToast("Please provide both name and email.");
+      return;
+    }
+    const newAdmin: AdminUser = {
+      id: `admin-${Date.now()}`,
+      name: newAdminForm.name.trim(),
+      email: newAdminForm.email.trim(),
+      role: newAdminForm.role,
+      status: "Active",
+    };
+    setAdminUsers((prev) => [newAdmin, ...prev]);
+    showToast(`Admin ${newAdmin.name} added successfully!`);
+    setNewAdminForm({ name: "", email: "", role: "Admin" });
+    setIsAddAdminModalOpen(false);
+  };
 
   // Filtered suspended users
   const filteredSuspendedUsers = suspendedUsers.filter((u) => {
@@ -475,9 +580,8 @@ export default function AdminSettingsPage() {
           {/* Right: Admin Profile */}
           <div className="flex items-center gap-3 sm:gap-5">
             <div
-              className="h-11 px-3 py-1 rounded-[8px] flex items-center gap-2.5"
+              className="h-10 sm:h-11 px-2.5 sm:px-3 py-1 rounded-[8px] flex items-center gap-2 sm:gap-2.5 shrink-0 max-w-[140px] sm:max-w-none"
               style={{
-                width: "135px",
                 background: "rgba(255,255,255,0.2)",
                 border: "1px solid rgba(255,255,255,0.1)",
               }}
@@ -532,20 +636,20 @@ export default function AdminSettingsPage() {
               3-TAB SWITCHER (Component 15)
           ========================================================= */}
           <section
-            className="w-full p-1.5 sm:p-2 rounded-[16px] flex flex-row items-center gap-1.5 sm:gap-2 border border-white/10 shadow-xl overflow-x-auto scrollbar-none"
+            className="w-full p-1.5 sm:p-2 rounded-[16px] flex flex-row items-center gap-1 sm:gap-2 border border-white/10 shadow-xl overflow-x-auto scrollbar-none"
             style={{ background: cardBg }}
           >
             {/* Tab 1: Admin Info */}
             <button
               type="button"
               onClick={() => setActiveTab("admin-info")}
-              className={`flex-1 min-w-[110px] h-[48px] sm:h-[56px] lg:h-[62px] px-2 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none whitespace-nowrap ${
+              className={`flex-1 min-w-0 h-[44px] sm:h-[56px] lg:h-[62px] px-1 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none ${
                 activeTab === "admin-info"
-                  ? "bg-white/20 rounded-[12px] shadow-lg"
+                  ? "bg-white/20 rounded-[10px] sm:rounded-[12px] shadow-lg"
                   : "rounded-[6px] hover:bg-white/5"
               }`}
             >
-              <span className="font-['Lato'] font-medium text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[150%] tracking-[-0.01em] text-center text-white truncate">
+              <span className="font-['Lato'] font-medium text-[12px] xs:text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[140%] tracking-[-0.01em] text-center text-white truncate">
                 Admin Info
               </span>
             </button>
@@ -554,13 +658,13 @@ export default function AdminSettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("suspended-users")}
-              className={`flex-1 min-w-[130px] h-[48px] sm:h-[56px] lg:h-[62px] px-2 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none whitespace-nowrap ${
+              className={`flex-1 min-w-0 h-[44px] sm:h-[56px] lg:h-[62px] px-1 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none ${
                 activeTab === "suspended-users"
-                  ? "bg-white/20 rounded-[12px] shadow-lg"
+                  ? "bg-white/20 rounded-[10px] sm:rounded-[12px] shadow-lg"
                   : "rounded-[6px] hover:bg-white/5"
               }`}
             >
-              <span className="font-['Lato'] font-medium text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[150%] tracking-[-0.01em] text-center text-white truncate">
+              <span className="font-['Lato'] font-medium text-[12px] xs:text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[140%] tracking-[-0.01em] text-center text-white truncate">
                 Suspended Users
               </span>
             </button>
@@ -569,13 +673,13 @@ export default function AdminSettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("admin-management")}
-              className={`flex-1 min-w-[150px] h-[48px] sm:h-[56px] lg:h-[62px] px-2 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none whitespace-nowrap ${
+              className={`flex-1 min-w-0 h-[44px] sm:h-[56px] lg:h-[62px] px-1 sm:px-4 flex items-center justify-center transition-all cursor-pointer select-none ${
                 activeTab === "admin-management"
-                  ? "bg-white/20 rounded-[12px] shadow-lg"
+                  ? "bg-white/20 rounded-[10px] sm:rounded-[12px] shadow-lg"
                   : "rounded-[6px] hover:bg-white/5"
               }`}
             >
-              <span className="font-['Lato'] font-medium text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[150%] tracking-[-0.01em] text-center text-white truncate">
+              <span className="font-['Lato'] font-medium text-[12px] xs:text-[14px] sm:text-[16px] lg:text-[18px] xl:text-[20px] leading-[140%] tracking-[-0.01em] text-center text-white truncate">
                 Admin Management
               </span>
             </button>
@@ -598,11 +702,11 @@ export default function AdminSettingsPage() {
               >
                 <div className="flex flex-col gap-6">
                   {/* ---- Profile Picture ---- */}
-                  <div className="flex flex-col gap-5">
-                    <h2 className="font-['Lato'] font-medium text-[24px] leading-[140%] tracking-[-0.02em] text-white">
+                  <div className="flex flex-col gap-4 sm:gap-5 items-center sm:items-start">
+                    <h2 className="font-['Lato'] font-medium text-[20px] sm:text-[24px] leading-[140%] tracking-[-0.02em] text-white self-start">
                       Profile Picture:
                     </h2>
-                    <div className="relative w-[200px] h-[200px] sm:w-[234px] sm:h-[234px]">
+                    <div className="relative w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[234px] md:h-[234px]">
                       <div className="w-full h-full rounded-full border border-white overflow-hidden bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD]">
                         {profileImage ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -612,7 +716,7 @@ export default function AdminSettingsPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white font-bold text-6xl">
+                          <div className="w-full h-full flex items-center justify-center text-white font-bold text-4xl sm:text-6xl">
                             AH
                           </div>
                         )}
@@ -621,10 +725,10 @@ export default function AdminSettingsPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="absolute bottom-0 right-2 w-[48.17px] h-[41.45px] rounded-[4px] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                        className="absolute bottom-0 right-1 sm:right-2 w-[40px] h-[35px] sm:w-[48.17px] sm:h-[41.45px] rounded-[4px] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                         style={{ background: "rgba(255, 255, 255, 0.4)" }}
                       >
-                        <CameraIcon className="w-[31px] h-[25px]" />
+                        <CameraIcon className="w-[24px] h-[20px] sm:w-[31px] sm:h-[25px]" />
                       </button>
                       <input
                         ref={fileInputRef}
@@ -643,7 +747,7 @@ export default function AdminSettingsPage() {
                       <span className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white shrink-0 lg:w-[150px]">
                         Name
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
                         {/* First Name */}
                         <div className="flex flex-col gap-1.5 w-full">
                           <label className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white">
@@ -689,7 +793,7 @@ export default function AdminSettingsPage() {
                       <span className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white shrink-0 lg:w-[150px]">
                         Contact
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
                         {/* Phone */}
                         <div className="flex flex-col gap-1.5 w-full">
                           <label className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white">
@@ -735,7 +839,7 @@ export default function AdminSettingsPage() {
                       <span className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white shrink-0 lg:w-[150px]">
                         Work Information
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
                         {/* Company */}
                         <div className="flex flex-col gap-1.5 w-full">
                           <label className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white">
@@ -807,7 +911,7 @@ export default function AdminSettingsPage() {
                   <span className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white shrink-0 lg:w-[150px]">
                     Change Password
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 w-full">
                     {/* Old Password */}
                     <div className="flex flex-col gap-1.5 w-full">
                       <label className="font-['Lato'] font-medium text-[16px] leading-[150%] text-white">
@@ -895,17 +999,17 @@ export default function AdminSettingsPage() {
               className="flex flex-col gap-4 w-full"
             >
               {/* Top Controls Row (Frame 2147240220): Height 40px */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 w-full">
                 {/* Title */}
-                <h2 className="font-['Lato'] font-medium text-[22px] sm:text-[24px] leading-[140%] tracking-[-0.02em] text-white">
+                <h2 className="font-['Lato'] font-medium text-[20px] sm:text-[24px] leading-[140%] tracking-[-0.02em] text-white">
                   Suspended Users
                 </h2>
 
                 {/* Right controls: Search + Member tabs (Frame 2147240221) */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full lg:w-auto">
                   {/* Search Bar (Frame 2147227758: 246px x 40px) */}
                   <div
-                    className="w-full sm:w-[240px] md:w-[260px] h-[40px] rounded-[6px] px-2.5 py-2.5 flex items-center gap-2.5 border border-white/10 shrink-0"
+                    className="w-full md:w-[260px] h-[40px] rounded-[6px] px-2.5 py-2 flex items-center gap-2 border border-white/10 shrink-0"
                     style={{ background: "rgba(255, 255, 255, 0.2)" }}
                   >
                     <Search className="w-5 h-5 text-[#B5C8DB] shrink-0" />
@@ -932,7 +1036,7 @@ export default function AdminSettingsPage() {
 
                   {/* Member Type Pill Switcher (Frame 2147240033: 407px x 40px) */}
                   <div
-                    className="h-[40px] w-full sm:w-auto overflow-x-auto rounded-[6px] p-1 flex items-center justify-between sm:justify-start border border-white/10 shrink-0 scrollbar-none"
+                    className="h-[40px] w-full md:w-auto overflow-x-auto rounded-[6px] p-1 flex items-center justify-between md:justify-start gap-1 border border-white/10 shrink-0 scrollbar-none"
                     style={{ background: "rgba(255, 255, 255, 0.2)" }}
                   >
                     <button
@@ -941,7 +1045,7 @@ export default function AdminSettingsPage() {
                         setSuspendedMemberFilter("Free");
                         setSuspendedPage(1);
                       }}
-                      className={`flex-1 sm:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[14px] sm:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
+                      className={`flex-1 md:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[13px] sm:text-[14px] md:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
                         suspendedMemberFilter === "Free"
                           ? "font-normal shadow-sm"
                           : "font-normal hover:bg-white/10"
@@ -952,8 +1056,8 @@ export default function AdminSettingsPage() {
                           : {}
                       }
                     >
-                      <span className="inline sm:hidden">Free</span>
-                      <span className="hidden sm:inline">Free Members</span>
+                      <span className="inline md:hidden">Free</span>
+                      <span className="hidden md:inline">Free Members</span>
                     </button>
 
                     <button
@@ -962,7 +1066,7 @@ export default function AdminSettingsPage() {
                         setSuspendedMemberFilter("Pro");
                         setSuspendedPage(1);
                       }}
-                      className={`flex-1 sm:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[14px] sm:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
+                      className={`flex-1 md:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[13px] sm:text-[14px] md:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
                         suspendedMemberFilter === "Pro"
                           ? "font-normal shadow-sm"
                           : "font-normal hover:bg-white/10"
@@ -973,8 +1077,8 @@ export default function AdminSettingsPage() {
                           : {}
                       }
                     >
-                      <span className="inline sm:hidden">Pro</span>
-                      <span className="hidden sm:inline">Pro Members</span>
+                      <span className="inline md:hidden">Pro</span>
+                      <span className="hidden md:inline">Pro Members</span>
                     </button>
 
                     <button
@@ -983,7 +1087,7 @@ export default function AdminSettingsPage() {
                         setSuspendedMemberFilter("Enterprise");
                         setSuspendedPage(1);
                       }}
-                      className={`flex-1 sm:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[14px] sm:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
+                      className={`flex-1 md:flex-none h-[32px] px-3 py-1.5 rounded-[4px] font-['Lato'] text-[13px] sm:text-[14px] md:text-[16px] leading-[150%] tracking-[-0.02em] text-white transition-all cursor-pointer whitespace-nowrap text-center ${
                         suspendedMemberFilter === "Enterprise"
                           ? "font-normal shadow-sm"
                           : "font-normal hover:bg-white/10"
@@ -994,8 +1098,8 @@ export default function AdminSettingsPage() {
                           : {}
                       }
                     >
-                      <span className="inline sm:hidden">Enterprise</span>
-                      <span className="hidden sm:inline">Enterprise Members</span>
+                      <span className="inline md:hidden">Enterprise</span>
+                      <span className="hidden md:inline">Enterprise Members</span>
                     </button>
                   </div>
                 </div>
@@ -1123,9 +1227,9 @@ export default function AdminSettingsPage() {
               </div>
 
               {/* Pagination Footer */}
-              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+              <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pt-3">
                 {/* Section Result */}
-                <div className="flex items-center gap-2.5 font-['Lato'] font-medium text-[14px] leading-[150%] text-white">
+                <div className="flex items-center justify-center md:justify-start gap-2.5 font-['Lato'] font-medium text-[14px] leading-[150%] text-white">
                   <span>Showing</span>
                   <div
                     className="w-[53px] h-[40px] rounded-[6px] px-2 flex items-center justify-center gap-1 cursor-pointer hover:bg-white/30 transition-colors"
@@ -1138,7 +1242,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* Pagination Controls */}
-                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-center md:justify-end gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     disabled={suspendedPage <= 1}
@@ -1206,30 +1310,251 @@ export default function AdminSettingsPage() {
           )}
 
           {/* =========================================================
-              ADMIN MANAGEMENT TAB (Placeholder)
+              ADMIN MANAGEMENT TAB (Figma Frame 2147240223)
           ========================================================= */}
           {activeTab === "admin-management" && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
+              className="w-full flex flex-col gap-4"
             >
-              <section
-                className="w-full rounded-[16px] p-6 sm:p-8 flex flex-col items-center justify-center min-h-[400px] border border-white/10 shadow-xl"
-                style={{ background: cardBg }}
+              {/* Top Row (Frame 2147240220): Admin List + Add Admin */}
+              <div className="w-full flex flex-row justify-between items-center gap-3 min-h-[44px]">
+                <h2 className="font-['Lato'] font-medium text-[20px] sm:text-[24px] leading-[140%] tracking-[-0.02em] text-white">
+                  Admin List
+                </h2>
+
+                {/* Add Admin Button (Frame 2147224437) */}
+                <button
+                  type="button"
+                  onClick={() => setIsAddAdminModalOpen(true)}
+                  className="h-[40px] sm:h-[44px] px-3.5 sm:px-6 rounded-[8px] flex items-center justify-center gap-1.5 sm:gap-2 font-['Lato'] font-semibold text-[14px] sm:text-[16px] text-white shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer shrink-0"
+                  style={{
+                    background:
+                      "linear-gradient(89.44deg, #2563EB -47.4%, #7A3BED 76.5%, #A842D4 101.93%)",
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M7 1.5V12.5M1.5 7H12.5"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span>Add Admin</span>
+                </button>
+              </div>
+
+              {/* Table Container (Frame 2147239933) */}
+              <div
+                className="w-full rounded-[16px] border border-white/10 shadow-2xl overflow-hidden"
+                style={{ background: adminTableCardBg }}
               >
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-                    <SideNavAdminSettingsIcon className="w-8 h-8 text-white/40" />
+                <div className="w-full overflow-x-auto scrollbar-none">
+                  <div className="min-w-[850px] w-full flex flex-col">
+                    {/* Table Header (Frame 2147239437) */}
+                    <div
+                      className={`grid ${adminGridCols} items-center px-4 sm:px-6 h-[52px] rounded-t-[16px]`}
+                      style={{ background: "rgba(43, 127, 255, 0.3)" }}
+                    >
+                      <div className="font-['Lato'] font-semibold text-[16px] leading-[150%] uppercase text-white tracking-[-0.02em]">
+                        Name
+                      </div>
+                      <div className="font-['Lato'] font-semibold text-[16px] leading-[150%] uppercase text-white tracking-[-0.02em]">
+                        Role
+                      </div>
+                      <div className="font-['Lato'] font-semibold text-[16px] leading-[150%] uppercase text-white tracking-[-0.02em]">
+                        Email
+                      </div>
+                      <div className="font-['Lato'] font-semibold text-[16px] leading-[150%] uppercase text-white tracking-[-0.02em]">
+                        Status
+                      </div>
+                      <div className="font-['Lato'] font-semibold text-[16px] leading-[150%] uppercase text-white tracking-[-0.02em]">
+                        Action
+                      </div>
+                    </div>
+
+                    {/* Table Rows (Frame 2147239439, 2147239452, etc.) */}
+                    {adminUsers.length === 0 ? (
+                      <div className="w-full h-48 flex items-center justify-center text-white/50 font-['Lato'] text-[16px]">
+                        No administrators found
+                      </div>
+                    ) : (
+                      adminUsers.map((admin, idx) => {
+                        const isEven = idx % 2 === 1;
+                        return (
+                          <div
+                            key={admin.id}
+                            className={`grid ${adminGridCols} items-center px-4 sm:px-6 h-[68px] transition-colors hover:brightness-105`}
+                            style={{
+                              background: isEven ? adminRowEvenBg : adminRowOddBg,
+                            }}
+                          >
+                            {/* Name */}
+                            <div className="font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-white truncate pr-2">
+                              {admin.name}
+                            </div>
+
+                            {/* Role */}
+                            <div className="font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-white truncate pr-2">
+                              {admin.role}
+                            </div>
+
+                            {/* Email */}
+                            <div className="font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-white truncate pr-2">
+                              {admin.email}
+                            </div>
+
+                            {/* Status Pill Badge (Frame 2147226681) */}
+                            <div>
+                              <div className="w-[80px] h-[28px] rounded-full flex items-center justify-center bg-[#10B981]/20">
+                                <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-[#10B981]">
+                                  {admin.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Action Button: Remove (Component 5/secondary button) */}
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => setAdminToRemove(admin)}
+                                className="w-[74px] h-[30px] rounded-[4px] border border-[#FF5B5B] bg-white/20 hover:bg-[#FF5B5B]/20 text-white font-['Lato'] font-medium text-[14px] leading-[150%] flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                  <h3 className="font-['Lato'] font-medium text-[20px] text-white">
-                    Admin Management
-                  </h3>
-                  <p className="font-['Lato'] font-normal text-[16px] text-[#A0AEC0] text-center max-w-md">
-                    Manage admin accounts, roles, and permissions here. Add or remove administrators as needed.
-                  </p>
                 </div>
-              </section>
+              </div>
+
+              {/* Pagination Footer */}
+              <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 pt-3">
+                {/* Section Result */}
+                <div className="flex items-center justify-center md:justify-start gap-2.5 font-['Lato'] font-medium text-[14px] leading-[150%] text-white">
+                  <span>Showing</span>
+                  <div className="w-[53px] h-[40px] px-2 rounded-[6px] bg-white/20 flex items-center justify-center gap-1 cursor-pointer hover:bg-white/30 transition-colors">
+                    <span className="font-['Lato'] font-normal text-[14px] text-white">10</span>
+                    <CaretDownIcon className="w-3.5 h-3.5 text-[#B5C8DB]" />
+                  </div>
+                  <span>results</span>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex flex-wrap items-center justify-center md:justify-end gap-1.5 sm:gap-2">
+                  {/* Previous */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage((p) => Math.max(1, p - 1))}
+                    disabled={adminPage === 1}
+                    className="h-[40px] px-3 rounded-[6px] bg-white/20 hover:bg-white/30 disabled:opacity-40 disabled:hover:bg-white/20 text-white flex items-center gap-1.5 font-['Lato'] font-medium text-[14px] leading-[150%] transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <CaretLeftIcon className="w-3.5 h-3.5 text-[#B5C8DB]" />
+                    <span>Previous</span>
+                  </button>
+
+                  {/* Page 1 (Active) */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage(1)}
+                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
+                      adminPage === 1
+                        ? "shadow-md"
+                        : "bg-white/20 hover:bg-white/30"
+                    }`}
+                    style={
+                      adminPage === 1
+                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                        : undefined
+                    }
+                  >
+                    1
+                  </button>
+
+                  {/* Page 2 */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage(2)}
+                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
+                      adminPage === 2
+                        ? "shadow-md"
+                        : "bg-white/20 hover:bg-white/30"
+                    }`}
+                    style={
+                      adminPage === 2
+                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                        : undefined
+                    }
+                  >
+                    2
+                  </button>
+
+                  {/* Page 3 */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage(3)}
+                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
+                      adminPage === 3
+                        ? "shadow-md"
+                        : "bg-white/20 hover:bg-white/30"
+                    }`}
+                    style={
+                      adminPage === 3
+                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                        : undefined
+                    }
+                  >
+                    3
+                  </button>
+
+                  {/* Ellipsis */}
+                  <div className="w-[30px] h-[39px] rounded-[12px] flex items-center justify-center font-['Lato'] font-normal text-[14px] text-white">
+                    ...
+                  </div>
+
+                  {/* Page 10 */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage(10)}
+                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
+                      adminPage === 10
+                        ? "shadow-md"
+                        : "bg-white/20 hover:bg-white/30"
+                    }`}
+                    style={
+                      adminPage === 10
+                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                        : undefined
+                    }
+                  >
+                    10
+                  </button>
+
+                  {/* Next */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminPage((p) => Math.min(10, p + 1))}
+                    disabled={adminPage === 10}
+                    className="h-[40px] px-3 rounded-[6px] bg-white/20 hover:bg-white/30 disabled:opacity-40 disabled:hover:bg-white/20 text-white flex items-center gap-1.5 font-['Lato'] font-medium text-[14px] leading-[150%] transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <span>Next</span>
+                    <CaretRightIcon className="w-3.5 h-3.5 text-[#B5C8DB]" />
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )}
         </main>
@@ -1367,6 +1692,142 @@ export default function AdminSettingsPage() {
                   End Suspension
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Remove Admin Confirmation Modal */}
+        {adminToRemove && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-[440px] rounded-[16px] p-6 border border-white/20 shadow-2xl flex flex-col gap-5 text-white"
+              style={{
+                background: "linear-gradient(135deg, #1E1B4B 0%, #2B2A7D 100%)",
+              }}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="font-['Lato'] font-semibold text-[20px] text-white">
+                  Remove Admin
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAdminToRemove(null)}
+                  className="text-white/60 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="font-['Lato'] font-normal text-[15px] text-[#D0D0D0] leading-[150%]">
+                Are you sure you want to remove <span className="font-semibold text-white">{adminToRemove.name}</span> ({adminToRemove.role}) from the administrator list? They will no longer have access to the admin dashboard.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAdminToRemove(null)}
+                  className="px-4 py-2 rounded-[6px] text-sm font-medium bg-white/20 hover:bg-white/30 text-white transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemoveAdmin}
+                  className="px-4 py-2 rounded-[6px] text-sm font-medium bg-[#FF5B5B] hover:bg-[#FF5B5B]/80 text-white transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Confirm & Remove
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Add Admin Modal */}
+        {isAddAdminModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-[480px] rounded-[16px] p-6 border border-white/20 shadow-2xl flex flex-col gap-5 text-white"
+              style={{
+                background: "linear-gradient(135deg, #1E1B4B 0%, #2B2A7D 100%)",
+              }}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="font-['Lato'] font-semibold text-[20px] text-white">
+                  Add New Admin
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddAdminModalOpen(false)}
+                  className="text-white/60 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddAdminSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-['Lato'] text-[14px] text-[#A0AEC0]">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAdminForm.name}
+                    onChange={(e) => setNewAdminForm({ ...newAdminForm, name: e.target.value })}
+                    placeholder="e.g. John Stark"
+                    className="w-full h-11 px-3.5 rounded-[8px] bg-white/10 border border-white/20 text-white font-['Lato'] text-sm focus:outline-none focus:border-[#4F39F6] transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-['Lato'] text-[14px] text-[#A0AEC0]">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newAdminForm.email}
+                    onChange={(e) => setNewAdminForm({ ...newAdminForm, email: e.target.value })}
+                    placeholder="e.g. john.stark@curio.ai"
+                    className="w-full h-11 px-3.5 rounded-[8px] bg-white/10 border border-white/20 text-white font-['Lato'] text-sm focus:outline-none focus:border-[#4F39F6] transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-['Lato'] text-[14px] text-[#A0AEC0]">Role</label>
+                  <select
+                    value={newAdminForm.role}
+                    onChange={(e) => setNewAdminForm({ ...newAdminForm, role: e.target.value })}
+                    className="w-full h-11 px-3.5 rounded-[8px] bg-[#2B2A7D] border border-white/20 text-white font-['Lato'] text-sm focus:outline-none focus:border-[#4F39F6] transition-colors cursor-pointer"
+                  >
+                    <option value="Admin" className="bg-[#1E1B4B] text-white">Admin</option>
+                    <option value="Super Admin" className="bg-[#1E1B4B] text-white">Super Admin</option>
+                    <option value="Manager" className="bg-[#1E1B4B] text-white">Manager</option>
+                    <option value="Editor" className="bg-[#1E1B4B] text-white">Editor</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddAdminModalOpen(false)}
+                    className="px-4 py-2 rounded-[6px] text-sm font-medium bg-white/20 hover:bg-white/30 text-white transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-[6px] text-sm font-medium text-white transition-all shadow-md active:scale-95 cursor-pointer"
+                    style={{
+                      background: "linear-gradient(89.44deg, #2563EB -47.4%, #7A3BED 76.5%, #A842D4 101.93%)",
+                    }}
+                  >
+                    Add Admin
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
