@@ -4,9 +4,11 @@ import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Eye, EyeOff, Sparkles, Headphones, CheckCircle2, ArrowRight, Check, X, KeyRound } from "lucide-react";
+import { Mail, Eye, EyeOff, Sparkles, Headphones, CheckCircle2, ArrowRight, Check, X, KeyRound, Loader2 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { authApi } from "@/lib/api";
 
 function GoogleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -37,6 +39,8 @@ function LoginForm() {
   const registered = searchParams.get("registered") === "true";
   const initialEmail = searchParams.get("email") ? decodeURIComponent(searchParams.get("email")!) : "";
 
+  const { login } = useAuth();
+
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -51,8 +55,10 @@ function LoginForm() {
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -66,10 +72,23 @@ function LoginForm() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await login({ email: email.trim(), password }, rememberMe);
+      if (res.user?.is_suspended) {
+        setError(`Your account has been suspended: ${res.user.suspension_reason || "Please contact support."}`);
+        return;
+      }
+      const redirectUrl = searchParams.get("redirect");
+      if (redirectUrl) {
+        router.push(redirectUrl);
+      } else {
+        router.push("/feed");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to log in. Please check your credentials.");
+    } finally {
       setIsLoading(false);
-      router.push("/feed");
-    }, 600);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -80,15 +99,28 @@ function LoginForm() {
     }, 500);
   };
 
-  const handleSendResetLink = (e: React.FormEvent) => {
+  const handleSendResetLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail.trim() || !forgotEmail.includes("@")) return;
-    setForgotSent(true);
-    setTimeout(() => {
-      setForgotSent(false);
-      setIsForgotModalOpen(false);
-      setForgotEmail("");
-    }, 2500);
+    setForgotError(null);
+
+    if (!forgotEmail.trim() || !forgotEmail.includes("@")) {
+      setForgotError("Please enter a valid email address.");
+      return;
+    }
+
+    setIsForgotLoading(true);
+    try {
+      await authApi.forgotPassword({ email: forgotEmail.trim() });
+      setForgotSent(true);
+      setTimeout(() => {
+        setIsForgotModalOpen(false);
+        router.push(`/forgot-password?email=${encodeURIComponent(forgotEmail.trim())}`);
+      }, 1500);
+    } catch (err: any) {
+      setForgotError(err.message || "Failed to send reset code. Please try again.");
+    } finally {
+      setIsForgotLoading(false);
+    }
   };
 
   return (
@@ -370,10 +402,15 @@ function LoginForm() {
               {forgotSent ? (
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm text-center flex flex-col items-center gap-2">
                   <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                  <span>Reset instructions have been sent to your email!</span>
+                  <span>Reset OTP has been sent! Redirecting...</span>
                 </div>
               ) : (
                 <form onSubmit={handleSendResetLink} className="flex flex-col gap-4">
+                  {forgotError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+                      {forgotError}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-2">
                     <label className="text-white text-sm font-medium">Email Address</label>
                     <input
@@ -387,9 +424,14 @@ function LoginForm() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] text-white font-semibold text-sm hover:brightness-110 active:scale-[0.99] transition-all"
+                    disabled={isForgotLoading}
+                    className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] text-white font-semibold text-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                   >
-                    Send Recovery Link
+                    {isForgotLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Send Recovery OTP"
+                    )}
                   </button>
                 </form>
               )}

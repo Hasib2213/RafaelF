@@ -3,8 +3,11 @@ import React from "react";
 import Link from "next/link";
 import CurioLogo from "./CurioLogo";
 import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CTABanner() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section className="relative w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-0 py-16 sm:py-24">
       {/* Background Glow */}
@@ -34,13 +37,15 @@ export default function CTABanner() {
           {/* Primary Action Button */}
           <div>
             <Link
-              href="/signup"
+              href={isAuthenticated ? "/feed" : "/signup"}
               className="group inline-flex items-center gap-3.5 px-3 py-1.5 h-12 rounded-lg text-base font-semibold text-white bg-figma-btn shadow-xl shadow-purple-950/50 hover:shadow-purple-700/40 hover:scale-[1.02] transition-all active:scale-[0.98]"
             >
               <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#7A3BED] shrink-0 group-hover:translate-x-0.5 transition-transform shadow-inner">
                 <ChevronRight className="w-4 h-4 text-[#7A3BED] stroke-[3]" />
               </div>
-              <span className="pr-4 font-semibold">Sign Up Free</span>
+              <span className="pr-4 font-semibold">
+                {isAuthenticated ? "Go to Dashboard" : "Sign Up Free"}
+              </span>
             </Link>
           </div>
         </div>

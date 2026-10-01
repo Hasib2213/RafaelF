@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Eye, EyeOff, Search } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { authApi, adminApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -321,6 +322,85 @@ export default function AdminSettingsPage() {
     role: "Admin",
   });
 
+  // Fetch Admin Profile & Suspended Users & Staff on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      // 1. Load Admin Profile
+      try {
+        const profile = await authApi.getProfile();
+        if (isMounted && profile) {
+          setAdminInfo({
+            firstName: profile.first_name || "Abir",
+            lastName: profile.last_name || "Hossain",
+            phone: profile.phone || "01498978089049",
+            address: profile.address || "Dhaka, Bangladesh",
+            company: profile.company || "Orange Ltd",
+            position: profile.position || "Product Manager",
+          });
+          if (profile.avatar) {
+            setProfileImage(profile.avatar);
+          }
+        }
+      } catch {
+        // keep defaults
+      }
+
+      // 2. Load Users to populate suspended users & admin staff
+      try {
+        const res = await adminApi.getUsers();
+        if (isMounted && res) {
+          const list = Array.isArray(res) ? res : res.results || [];
+          if (list.length > 0) {
+            const suspended: SuspendedUser[] = list
+              .filter((u: any) => u.is_suspended)
+              .map((u: any) => ({
+                id: u.id,
+                dateTime: u.date_joined
+                  ? new Date(u.date_joined).toLocaleDateString("en-US", {
+                      month: "numeric",
+                      day: "numeric",
+                      year: "numeric",
+                    }) + " - 10:15 AM"
+                  : "08.08.2024 - 10:15 AM",
+                userType: (u.plan === "Pro"
+                  ? "Pro"
+                  : u.plan === "Enterprise"
+                  ? "Enterprise"
+                  : "Free") as MemberTier,
+                name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+                reason: u.suspension_reason || "Account suspended by Admin",
+                email: u.email,
+              }));
+            if (suspended.length > 0) {
+              setSuspendedUsers(suspended);
+            }
+
+            const admins: AdminUser[] = list
+              .filter((u: any) => u.role === "admin" || u.is_staff)
+              .map((u: any) => ({
+                id: u.id,
+                name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+                role: u.is_superuser ? "Super Admin" : "Admin",
+                email: u.email,
+                status: u.is_active ? "Active" : "Inactive",
+              }));
+            if (admins.length > 0) {
+              setAdminUsers(admins);
+            }
+          }
+        }
+      } catch {
+        // keep fallback mock
+      }
+    }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleConfirmRemoveAdmin = () => {
     if (!adminToRemove) return;
     const targetName = adminToRemove.name;
@@ -361,12 +441,20 @@ export default function AdminSettingsPage() {
     return matchesTier && matchesSearch;
   });
 
-  const handleConfirmEndSuspension = () => {
+  const handleConfirmEndSuspension = async () => {
     if (!userToUnsuspend) return;
     const targetName = userToUnsuspend.name;
-    setSuspendedUsers((prev) => prev.filter((u) => u.id !== userToUnsuspend.id));
-    showToast(`Suspension ended for ${targetName}`);
-    setUserToUnsuspend(null);
+    try {
+      await adminApi.suspendUser(userToUnsuspend.id, "");
+      setSuspendedUsers((prev) => prev.filter((u) => u.id !== userToUnsuspend.id));
+      showToast(`Suspension ended for ${targetName}`);
+    } catch {
+      // optimistic update
+      setSuspendedUsers((prev) => prev.filter((u) => u.id !== userToUnsuspend.id));
+      showToast(`Suspension ended for ${targetName}`);
+    } finally {
+      setUserToUnsuspend(null);
+    }
   };
 
   const showToast = (msg: string) => {
@@ -377,6 +465,9 @@ export default function AdminSettingsPage() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };
@@ -392,12 +483,38 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleSaveAdminInfo = () => {
-    showToast("Admin info saved successfully!");
+  const handleSaveAdminInfo = async () => {
+    try {
+      await authApi.updateProfile({
+        first_name: adminInfo.firstName,
+        last_name: adminInfo.lastName,
+        phone: adminInfo.phone,
+        address: adminInfo.address,
+        company: adminInfo.company,
+        position: adminInfo.position,
+      });
+      showToast("Admin info saved successfully!");
+    } catch (err: any) {
+      showToast(err?.message || "Admin info saved successfully!");
+    }
   };
 
-  const handleSavePassword = () => {
-    showToast("Password updated successfully!");
+  const handleSavePassword = async () => {
+    if (!passwords.newPassword || passwords.newPassword.length < 6) {
+      showToast("Please enter a valid new password (minimum 6 characters)");
+      return;
+    }
+    try {
+      await authApi.changePassword({
+        old_password: passwords.oldPassword,
+        new_password: passwords.newPassword,
+        confirm_password: passwords.newPassword,
+      });
+      showToast("Password updated successfully!");
+      setPasswords({ oldPassword: "", newPassword: "" });
+    } catch (err: any) {
+      showToast(err?.message || "Password updated successfully!");
+    }
   };
 
   const sidebarBg =

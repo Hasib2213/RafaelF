@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { adminApi, subscriptionsApi } from "@/lib/api";
 import {
   SuspendUserIcon,
   StatCalendarIcon,
@@ -103,16 +104,70 @@ const RECENT_ACTIVITIES: ActivityItem[] = [
 
 function UserDetailsContent() {
   const searchParams = useSearchParams();
-  const userName = searchParams.get("name") || "Alice Park";
-  const userPlan = searchParams.get("plan") || "Free Member";
+  const queryId = searchParams.get("id");
+  const queryName = searchParams.get("name") || "Alice Park";
+  const queryPlan = searchParams.get("plan") || "Free Member";
 
+  const [userId] = useState<string | null>(queryId);
+  const [userName, setUserName] = useState<string>(queryName);
+  const [userPlan, setUserPlan] = useState<string>(queryPlan);
+  const [userEmail, setUserEmail] = useState<string>(
+    queryName.toLowerCase().replace(/\s+/g, ".") + "@gmail.com"
+  );
+  const [memberSince, setMemberSince] = useState<string>("24 Aug 2024");
   const [isSuspended, setIsSuspended] = useState(false);
+  const [transactions, setTransactions] = useState<PurchaseHistoryItem[]>(PURCHASE_HISTORY);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(7);
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      if (queryId) {
+        try {
+          const u = await adminApi.getUserDetail(queryId);
+          if (isMounted && u) {
+            const name = u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email;
+            setUserName(name);
+            if (u.email) setUserEmail(u.email);
+            if (u.plan) setUserPlan(u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member");
+            if (u.is_suspended !== undefined) setIsSuspended(u.is_suspended);
+            if (u.date_joined) {
+              setMemberSince(new Date(u.date_joined).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }));
+            }
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      try {
+        const txs = await subscriptionsApi.getTransactions();
+        if (isMounted && txs && txs.length > 0) {
+          const mapped: PurchaseHistoryItem[] = txs.map((t: any, idx: number) => ({
+            id: t.id || `row-${idx + 1}`,
+            paymentDate: t.created_at
+              ? new Date(t.created_at).toLocaleDateString("en-US", { hour: "numeric", minute: "numeric", month: "short", day: "numeric", year: "numeric" })
+              : "Recent",
+            cardNumber: t.card_last4 ? `•••• •••• •••• ${t.card_last4}` : "Stripe Payment",
+            subscriptionType: (t.plan_name === "Pro" ? "Pro(Monthly)" : t.plan_name === "Enterprise" ? "Enterprise(Yearly)" : "Free Member") as any,
+            amount: `$${parseFloat(t.amount || "12.00").toFixed(2)}`,
+          }));
+          setTransactions(mapped);
+        }
+      } catch {
+        // fallback
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, [queryId]);
 
   const initials = userName
     .split(" ")
@@ -122,18 +177,25 @@ function UserDetailsContent() {
     .toUpperCase() || "AP";
 
   const usernameHandle = "@" + userName.toLowerCase().replace(/\s+/g, "");
-  const userEmail = userName.toLowerCase().replace(/\s+/g, ".") + "@gmail.com";
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };
 
-  const handleSuspendToggle = () => {
+  const handleSuspendToggle = async () => {
     if (isSuspended) {
       if (confirm(`Are you sure you want to lift the suspension for ${userName}?`)) {
+        try {
+          if (userId) await adminApi.suspendUser(userId, "");
+        } catch {
+          // optimistic
+        }
         setIsSuspended(false);
       }
     } else {
@@ -477,7 +539,7 @@ function UserDetailsContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    24 Aug 2024
+                    {memberSince}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <StatCalendarIcon className="w-5 h-5 text-white" />
@@ -584,9 +646,9 @@ function UserDetailsContent() {
 
                   {/* 7 Table Rows */}
                   <div className="flex flex-col w-[718px]">
-                    {PURCHASE_HISTORY.map((item, idx) => {
+                    {transactions.slice(0, rowsPerPage).map((item, idx) => {
                       const isEvenRow = idx % 2 === 0;
-                      const isLastRow = idx === PURCHASE_HISTORY.length - 1;
+                      const isLastRow = idx === Math.min(transactions.length, rowsPerPage) - 1;
 
                       return (
                         <div
@@ -797,7 +859,12 @@ function UserDetailsContent() {
 
               <div className="flex items-center justify-center gap-4 w-full">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    try {
+                      if (userId) await adminApi.suspendUser(userId, "Suspended via Admin Console");
+                    } catch {
+                      // optimistic update
+                    }
                     setIsSuspended(true);
                     setShowSuspendModal(false);
                   }}

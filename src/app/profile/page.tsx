@@ -1,71 +1,208 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import Footer from "@/components/Footer";
-import { Camera, Eye, EyeOff, Check, AlertCircle } from "lucide-react";
+import { Camera, Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { authApi, resolveAvatarUrl } from "@/lib/api";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export default function ProfilePage() {
+  const { user, setUser, refreshUser } = useAuth();
+
   // Initial profile data
   const initialProfile = {
-    firstName: "Abir",
-    lastName: "Hossain",
-    phone: "01498978089049",
-    address: "Dhaka, Bangladesh",
-    company: "Orange Ltd",
-    position: "Product Manager",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
+    firstName: user?.first_name || "Abir",
+    lastName: user?.last_name || "Hossain",
+    phone: user?.phone || "01498978089049",
+    address: user?.address || "Dhaka, Bangladesh",
+    company: user?.company || "Orange Ltd",
+    position: user?.position || "Product Manager",
+    avatar:
+      resolveAvatarUrl(user?.avatar_url || user?.avatar) ||
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
   };
 
   // Form states
   const [profile, setProfile] = useState(initialProfile);
   const [tempProfile, setTempProfile] = useState(initialProfile);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   // Password states
-  const [oldPassword, setOldPassword] = useState("jonsnow007");
-  const [newPassword, setNewPassword] = useState("*********");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // Loading states
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<"success" | "error">("success");
 
   // Avatar file upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToastMessage(msg);
+    setToastType(type);
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
   };
 
+  // Fetch current user from backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProfile() {
+      try {
+        setIsLoadingProfile(true);
+        const data = await authApi.getProfile();
+        if (isMounted && data) {
+          const avatar =
+            resolveAvatarUrl(data.avatar_url || data.avatar) ||
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
+          const loaded = {
+            firstName: data.first_name || "",
+            lastName: data.last_name || "",
+            phone: data.phone || "",
+            address: data.address || "",
+            company: data.company || "",
+            position: data.position || "",
+            avatar,
+          };
+          setProfile(loaded);
+          setTempProfile(loaded);
+          setUser(data);
+        }
+      } catch (err: any) {
+        // Fallback to auth context or default
+        if (user) {
+          const avatar =
+            resolveAvatarUrl(user.avatar_url || user.avatar) ||
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
+          const fallback = {
+            firstName: user.first_name || "",
+            lastName: user.last_name || "",
+            phone: user.phone || "",
+            address: user.address || "",
+            company: user.company || "",
+            position: user.position || "",
+            avatar,
+          };
+          setProfile(fallback);
+          setTempProfile(fallback);
+        }
+      } finally {
+        if (isMounted) setIsLoadingProfile(false);
+      }
+    }
+    loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Profile save & cancel
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfile({ ...tempProfile });
-    showToast("Profile settings updated successfully!");
+    setIsSavingProfile(true);
+
+    try {
+      let updated: any;
+      if (avatarFile) {
+        const fd = new FormData();
+        fd.append("first_name", tempProfile.firstName || "");
+        fd.append("last_name", tempProfile.lastName || "");
+        fd.append("phone", tempProfile.phone || "");
+        fd.append("address", tempProfile.address || "");
+        fd.append("company", tempProfile.company || "");
+        fd.append("position", tempProfile.position || "");
+        fd.append("avatar", avatarFile);
+
+        updated = await authApi.updateProfile(fd);
+      } else {
+        updated = await authApi.updateProfile({
+          first_name: tempProfile.firstName,
+          last_name: tempProfile.lastName,
+          phone: tempProfile.phone,
+          address: tempProfile.address,
+          company: tempProfile.company,
+          position: tempProfile.position,
+        });
+      }
+
+      const avatar =
+        resolveAvatarUrl(updated.avatar_url || updated.avatar) ||
+        tempProfile.avatar;
+
+      const saved = {
+        firstName: updated.first_name || tempProfile.firstName,
+        lastName: updated.last_name || tempProfile.lastName,
+        phone: updated.phone || tempProfile.phone,
+        address: updated.address || tempProfile.address,
+        company: updated.company || tempProfile.company,
+        position: updated.position || tempProfile.position,
+        avatar,
+      };
+      setProfile(saved);
+      setTempProfile(saved);
+      setAvatarFile(null);
+
+      // Immediately synchronize global AuthContext
+      setUser(updated);
+      await refreshUser();
+      showToast("Profile settings updated successfully!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to update profile", "error");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleCancelProfile = () => {
     setTempProfile({ ...profile });
+    setAvatarFile(null);
     showToast("Profile changes reverted.");
   };
 
   // Password save & cancel
-  const handleSavePassword = (e: React.FormEvent) => {
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword.trim() || !newPassword.trim()) {
-      showToast("Please enter both old and new passwords.");
+      showToast("Please enter both old and new passwords.", "error");
       return;
     }
-    showToast("Password updated successfully!");
+    if (newPassword.length < 6) {
+      showToast("New password must be at least 6 characters.", "error");
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      const res = await authApi.changePassword({
+        old_password: oldPassword,
+        new_password: newPassword,
+        confirm_password: newPassword,
+      });
+      showToast(res.message || "Password updated successfully!", "success");
+      setOldPassword("");
+      setNewPassword("");
+    } catch (err: any) {
+      showToast(err.message || "Failed to update password", "error");
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
   const handleCancelPassword = () => {
-    setOldPassword("jonsnow007");
-    setNewPassword("*********");
+    setOldPassword("");
+    setNewPassword("");
     setShowOldPassword(false);
     setShowNewPassword(false);
     showToast("Password changes cancelled.");
@@ -75,6 +212,7 @@ export default function ProfilePage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const objectUrl = URL.createObjectURL(file);
       setTempProfile((prev) => ({ ...prev, avatar: objectUrl }));
       showToast("New profile picture selected. Click 'Save Changes' to apply.");
@@ -84,7 +222,8 @@ export default function ProfilePage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma Desktop - 7 Side Panel: 240px wide, Profile active, responsive on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}
@@ -96,7 +235,7 @@ export default function ProfilePage() {
         {/* Top Nav (Figma Desktop - 7 Nav: 80px height) */}
         <FeedNavbar
           showSearch={false}
-          userSubtitle="abir07@gmai.com"
+          userSubtitle={user?.email || "abir07@gmai.com"}
           onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
@@ -125,9 +264,13 @@ export default function ProfilePage() {
                 <div className="relative w-[234px] h-[234px]">
                   <div className="w-[234px] h-[234px] rounded-full border border-white overflow-hidden shadow-xl bg-slate-800">
                     <img
-                      src={tempProfile.avatar}
+                      src={resolveAvatarUrl(tempProfile.avatar) || tempProfile.avatar}
                       alt="Profile Avatar"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
+                      }}
                     />
                   </div>
 
@@ -327,7 +470,8 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleCancelProfile}
-                  className="w-20 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all cursor-pointer select-none"
+                  disabled={isSavingProfile}
+                  className="w-20 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all cursor-pointer select-none disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -335,9 +479,17 @@ export default function ProfilePage() {
                 {/* Save Changes Button (Figma Frame 2147224437: 146px x 44px) */}
                 <button
                   type="submit"
-                  className="w-[146px] h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:opacity-95 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all shadow-md cursor-pointer select-none flex items-center justify-center"
+                  disabled={isSavingProfile}
+                  className="w-[146px] h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:opacity-95 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all shadow-md cursor-pointer select-none flex items-center justify-center disabled:opacity-60"
                 >
-                  Save Changes
+                  {isSavingProfile ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </div>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
             </form>
@@ -428,7 +580,8 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleCancelPassword}
-                  className="w-20 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all cursor-pointer select-none"
+                  disabled={isSavingPassword}
+                  className="w-20 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all cursor-pointer select-none disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -436,9 +589,17 @@ export default function ProfilePage() {
                 {/* Save Changes */}
                 <button
                   type="submit"
-                  className="w-[146px] h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:opacity-95 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all shadow-md cursor-pointer select-none flex items-center justify-center"
+                  disabled={isSavingPassword}
+                  className="w-[146px] h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:opacity-95 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] transition-all shadow-md cursor-pointer select-none flex items-center justify-center disabled:opacity-60"
                 >
-                  Save Changes
+                  {isSavingPassword ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </div>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
             </form>
@@ -453,13 +614,24 @@ export default function ProfilePage() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl bg-gradient-to-r from-[#1E1B4B] to-[#2B2A7D] border border-[#7A3BED]/50 text-white shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200">
-          <Check className="w-5 h-5 text-[#36C1FB] shrink-0" strokeWidth={2.5} />
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl border shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200 ${
+            toastType === "error"
+              ? "bg-[#3B1522] border-rose-500/50 text-rose-200"
+              : "bg-gradient-to-r from-[#1E1B4B] to-[#2B2A7D] border-[#7A3BED]/50 text-white"
+          }`}
+        >
+          {toastType === "error" ? (
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" strokeWidth={2.5} />
+          ) : (
+            <Check className="w-5 h-5 text-[#36C1FB] shrink-0" strokeWidth={2.5} />
+          )}
           <span className="text-sm font-medium font-['Lato',sans-serif]">
             {toastMessage}
           </span>
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

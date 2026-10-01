@@ -7,6 +7,7 @@ import CreatorCard, { Creator } from "@/components/following/CreatorCard";
 import ChannelPreviewCard from "@/components/following/ChannelPreviewCard";
 import UnfollowModal from "@/components/following/UnfollowModal";
 import Footer from "@/components/Footer";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Plus, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X, ExternalLink, CheckCircle, Check, Eye } from "lucide-react";
 
 type SortFilter = "recently" | "oldest" | "a-z" | "z-a";
@@ -131,6 +132,24 @@ const initialCreators: Creator[] = [
   },
 ];
 
+import { creatorsApi } from "@/lib/api";
+
+function mapBackendCreator(c: any): Creator {
+  return {
+    id: c.id,
+    name: c.name,
+    handle: c.handle,
+    avatar: c.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+    initials: c.initials || c.name.slice(0, 2).toUpperCase(),
+    avatarGradient: c.avatar_gradient || "bg-gradient-to-tr from-cyan-500 to-blue-600",
+    description: c.description || "",
+    videoCount: `${c.video_count || 10} Videos`,
+    subscriberCount: c.subscriber_count || "1M subscribers",
+    isFollowing: c.is_following ?? true,
+    createdAt: new Date(c.created_at || Date.now()).getTime(),
+  };
+}
+
 export default function FollowingPage() {
   const [creators, setCreators] = useState<Creator[]>(initialCreators);
   const [previewCreator, setPreviewCreator] = useState<Creator | null>(null);
@@ -143,6 +162,21 @@ export default function FollowingPage() {
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [unfollowTarget, setUnfollowTarget] = useState<Creator | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchCreators = async () => {
+      try {
+        const res = await creatorsApi.list();
+        const list = Array.isArray(res) ? res : res.results || [];
+        if (list.length > 0) {
+          setCreators(list.map(mapBackendCreator));
+        }
+      } catch (err) {
+        console.error("Failed to fetch creators:", err);
+      }
+    };
+    fetchCreators();
+  }, []);
 
   useEffect(() => {
     // Check if directly linked with ?45=true, ?preview=true, or ?46=true
@@ -169,8 +203,8 @@ export default function FollowingPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
+      setToastMessage(null), 4000;
+    });
   };
 
   const triggerPreviewFromUrl = (url: string) => {
@@ -207,8 +241,7 @@ export default function FollowingPage() {
     };
 
     setPreviewCreator(newPreview);
-    setChannelUrl("");
-    showToast(`Channel "${cleanName}" detected! Loading Desktop - 45 Preview...`);
+    showToast(`Channel "${cleanName}" detected! Ready to follow.`);
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -226,24 +259,35 @@ export default function FollowingPage() {
     if (channelUrl.trim()) {
       triggerPreviewFromUrl(channelUrl);
     } else {
-      // Default sample paste if empty and button is clicked
       triggerPreviewFromUrl("https://youtube.com/@techinsights");
     }
   };
 
-  const handleFollowPreview = () => {
+  const handleFollowPreview = async () => {
     if (!previewCreator) return;
-    const exists = creators.some((c) => c.name.toLowerCase() === previewCreator.name.toLowerCase());
-    if (!exists) {
-      const newCreator: Creator = {
-        ...previewCreator,
-        id: Date.now().toString(),
-        isFollowing: true,
-        createdAt: Date.now(),
-      };
-      setCreators([newCreator, ...creators]);
+    try {
+      if (channelUrl.trim()) {
+        const res = await creatorsApi.addByUrl(channelUrl.trim());
+        if (res && res.creator) {
+          const mapped = mapBackendCreator(res.creator);
+          setCreators((prev) => [mapped, ...prev.filter((c) => c.id !== mapped.id)]);
+          showToast(`Successfully followed ${mapped.name}!`);
+          setPreviewCreator(null);
+          setChannelUrl("");
+          return;
+        }
+      }
+    } catch (err: any) {
+      console.error("Backend add creator error:", err);
     }
-    showToast(`Successfully followed ${previewCreator.name}! AI summaries are syncing...`);
+    const newCreator: Creator = {
+      ...previewCreator,
+      id: Date.now().toString(),
+      isFollowing: true,
+      createdAt: Date.now(),
+    };
+    setCreators([newCreator, ...creators]);
+    showToast(`Successfully followed ${previewCreator.name}!`);
     setPreviewCreator(null);
   };
 
@@ -252,7 +296,7 @@ export default function FollowingPage() {
     showToast("Channel preview dismissed.");
   };
 
-  const handleConfirmUnfollow = () => {
+  const handleConfirmUnfollow = async () => {
     if (!unfollowTarget) return;
     const targetId = unfollowTarget.id;
     const targetName = unfollowTarget.name;
@@ -261,14 +305,24 @@ export default function FollowingPage() {
     );
     showToast(`Unfollowed ${targetName}.`);
     setUnfollowTarget(null);
+    try {
+      await creatorsApi.toggleFollow(targetId);
+    } catch (err) {
+      console.error("Failed to unfollow creator:", err);
+    }
   };
 
-  const handleFollow = (id: string) => {
+  const handleFollow = async (id: string) => {
     setCreators((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isFollowing: true } : c))
     );
     const creator = creators.find((c) => c.id === id);
     showToast(`Following ${creator?.name || "channel"}!`);
+    try {
+      await creatorsApi.toggleFollow(id);
+    } catch (err) {
+      console.error("Failed to follow creator:", err);
+    }
   };
 
   const handleSelectFilter = (filter: SortFilter) => {
@@ -307,7 +361,8 @@ export default function FollowingPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma Side Panel: 240px, responsive drawer on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}
@@ -714,5 +769,6 @@ export default function FollowingPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

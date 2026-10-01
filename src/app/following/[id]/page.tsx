@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, use } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
@@ -13,7 +13,8 @@ import ThankYouModal from "@/components/feed/ThankYouModal";
 import UnfollowModal from "@/components/following/UnfollowModal";
 import Footer from "@/components/Footer";
 import { BriefingItem } from "@/components/feed/BriefingCard";
-import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, X, ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, X, ArrowLeft, Loader2 } from "lucide-react";
+import { creatorsApi, briefingsApi } from "@/lib/api";
 
 const initialTechInsightsChannel: ChannelInfo = {
   name: "Tech Insights",
@@ -37,7 +38,7 @@ const initialMotiversityChannel: ChannelInfo = {
 
 const initialChannelVideos: ChannelVideoItem[] = [
   {
-    id: "v1",
+    id: "4e071ec6-4b7c-4430-b6bc-24d5922359cb",
     title: "YOU OWE IT TO YOU IN 2026 - Best Motivational Speech | Matthew McConaughey",
     duration: "08:25",
     thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80",
@@ -53,7 +54,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v2",
+    id: "899ffc75-3618-4443-9ede-8dd6f82940c0",
     title: "The Architecture of Large Language Models: From Attention to AGI",
     duration: "18:45",
     thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
@@ -69,7 +70,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v3",
+    id: "b40e4d24-0474-4c85-a92b-a822c1e00d65",
     title: "Mastering Spatial Computing, Neural Interfaces & Next-Gen Hardware",
     duration: "13:40",
     thumbnail: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=600&auto=format&fit=crop&q=80",
@@ -85,7 +86,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v4",
+    id: "c2e7b131-bf91-4324-821a-07d652e155f3",
     title: "The Future of Superintelligence & Quantum Computing Breakthroughs",
     duration: "15:20",
     thumbnail: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80",
@@ -101,7 +102,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v5",
+    id: "5d969c58-6f2c-405e-90b0-6a4b033b35ea",
     title: "AI Agents in 2026: From Autonomous Workflows to Digital Coworkers",
     duration: "11:50",
     thumbnail: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&auto=format&fit=crop&q=80",
@@ -117,7 +118,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v6",
+    id: "a225a5a1-3133-4d6e-a06d-e23497c1b77e",
     title: "How Frontier Labs Are Building Autonomous AI Foundations",
     duration: "16:15",
     thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
@@ -133,7 +134,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v7",
+    id: "1999dd9a-1d61-4908-96eb-db0f225d82b0",
     title: "Robotics Revolution: Humanoid Robots Transforming Industry in 2026",
     duration: "14:10",
     thumbnail: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=600&auto=format&fit=crop&q=80",
@@ -149,7 +150,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v8",
+    id: "6bc7fe2a-1f43-45e7-b53b-764e1003acf0",
     title: "Neuromorphic Chips & The Next 100x Efficiency Leap in Silicon",
     duration: "09:45",
     thumbnail: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80",
@@ -165,7 +166,7 @@ const initialChannelVideos: ChannelVideoItem[] = [
     ],
   },
   {
-    id: "v9",
+    id: "9368e415-6be9-4d9f-b8dc-52b79905bdfd",
     title: "Biotech Meets Machine Intelligence: Decoding Longevity & DNA",
     duration: "12:30",
     thumbnail: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&auto=format&fit=crop&q=80",
@@ -192,12 +193,85 @@ export default function ChannelDetailPage({
   const [channel, setChannel] = useState<ChannelInfo>(
     isMotiversity ? initialMotiversityChannel : initialTechInsightsChannel
   );
-  const [videos] = useState<ChannelVideoItem[]>(initialChannelVideos);
+  const [videos, setVideos] = useState<ChannelVideoItem[]>(initialChannelVideos);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [activePage, setActivePage] = useState(1);
   const [itemsPerPage] = useState(9);
   const [selectedBriefing, setSelectedBriefing] = useState<BriefingItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isUnfollowModalOpen, setIsUnfollowModalOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchChannelVideos = async () => {
+      setIsLoadingVideos(true);
+      try {
+        const querySlug = resolvedParams.id.replace("@", "").toLowerCase();
+
+        // 1. Try fetching creator info
+        try {
+          const c = await creatorsApi.getDetail(resolvedParams.id);
+          if (c && isMounted) {
+            setChannel({
+              name: c.name,
+              handle: c.handle,
+              avatar: c.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80",
+              videoCount: `${c.video_count || 24} Videos`,
+              subscriberCount: c.subscriber_count || "2.4M subscribers",
+              description: c.description || "",
+              isFollowing: c.is_following ?? true,
+            });
+          }
+        } catch {
+          // Keep current fallback channel
+        }
+
+        // 2. Fetch real briefings matching channel from backend
+        const res = await briefingsApi.list();
+        const allBriefings = Array.isArray(res) ? res : res.results || [];
+
+        const matched = allBriefings.filter((b: any) => {
+          const chName = (b.channel_name || "").toLowerCase().replace(/\s+/g, "");
+          const chHandle = (b.channel_handle || "").toLowerCase().replace(/[@\s]/g, "");
+          return (
+            chName.includes(querySlug) ||
+            chHandle.includes(querySlug) ||
+            b.creator_id === resolvedParams.id
+          );
+        });
+
+        if (isMounted) {
+          const targetList = matched.length > 0 ? matched : allBriefings;
+          if (targetList.length > 0) {
+            setVideos(
+              targetList.map((b: any) => ({
+                id: b.id,
+                title: b.title,
+                duration: b.duration || "10:00",
+                thumbnail: b.thumbnail_url || "/images/summary.png",
+                channelName: b.channel_name || (matched.length > 0 ? channel.name : "Tech Insights"),
+                subscribers: b.subscribers || channel.subscriberCount,
+                channelAvatar: channel.avatar,
+                summary: b.summary,
+                fullSummary: b.full_summary,
+                keyTakeaways: b.key_takeaways,
+                isSaved: b.is_saved ?? false,
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load channel briefings:", err);
+      } finally {
+        if (isMounted) setIsLoadingVideos(false);
+      }
+    };
+
+    fetchChannelVideos();
+    return () => {
+      isMounted = false;
+    };
+  }, [resolvedParams.id]);
 
   // Feedback & Improvement modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);

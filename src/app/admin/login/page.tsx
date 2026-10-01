@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Eye, EyeOff, ShieldCheck, Lock, Headphones, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion } from "framer-motion";
+import { authApi } from "@/lib/api";
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -20,7 +21,7 @@ function AdminLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -39,23 +40,24 @@ function AdminLoginForm() {
 
     setIsLoading(true);
 
-    // Mock Admin Authentication (When backend API is ready: POST /api/admin/login/)
-    setTimeout(() => {
-      setIsLoading(false);
-
-      // Allow demo admin accounts or any credentials with valid admin email
-      if (password.length < 4) {
-        setError("*Invalid admin credentials. Please try again.*");
+    try {
+      const res = await authApi.login({ email: trimmedEmail, password });
+      if (!res.user.is_staff && res.user.role !== "admin") {
+        setError("*Access denied: Account does not have administrator privileges.*");
         return;
       }
 
       // Store admin session
       if (typeof window !== "undefined") {
-        localStorage.setItem("curio_admin_user", JSON.stringify({ email: trimmedEmail, role: "Super Admin" }));
+        localStorage.setItem("curio_admin_user", JSON.stringify(res.user));
       }
 
       router.push("/admin/dashboard");
-    }, 600);
+    } catch (err: any) {
+      setError(`*${err.message || "Invalid admin credentials. Please try again."}*`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

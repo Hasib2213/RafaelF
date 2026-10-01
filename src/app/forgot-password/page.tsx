@@ -19,11 +19,13 @@ import {
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion, AnimatePresence } from "framer-motion";
+import { authApi } from "@/lib/api";
 
 function ForgotPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromAdmin = searchParams.get("from") === "admin";
+  const urlEmail = searchParams.get("email");
 
   const [step, setStep] = useState<"email" | "otp" | "new_password" | "success">("email");
   const [email, setEmail] = useState("");
@@ -44,6 +46,14 @@ function ForgotPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  // If email was provided in URL query, set it and move to OTP step
+  useEffect(() => {
+    if (urlEmail) {
+      setEmail(decodeURIComponent(urlEmail));
+      setStep("otp");
+    }
+  }, [urlEmail]);
+
   // Resend countdown timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -55,45 +65,7 @@ function ForgotPasswordForm() {
     return () => clearInterval(interval);
   }, [step, resendTimer]);
 
-  // Registered accounts (Figma default mock + any account registered via /signup)
-  const isEmailRegisteredInDatabase = (inputEmail: string) => {
-    const normalized = inputEmail.trim().toLowerCase();
-    
-    // Default demo/system registered accounts
-    const defaultRegisteredEmails = [
-      "jonsnow464@gmail.com",
-      "admin@curio.ai",
-      "demo@curio.ai",
-      "user@curio.ai",
-    ];
-
-    if (defaultRegisteredEmails.includes(normalized)) {
-      return true;
-    }
-
-    // Check localStorage for users registered via /signup in this browser session
-    if (typeof window !== "undefined") {
-      try {
-        const savedUsers = localStorage.getItem("curio_registered_users");
-        if (savedUsers) {
-          const parsed: string[] = JSON.parse(savedUsers);
-          if (Array.isArray(parsed) && parsed.includes(normalized)) {
-            return true;
-          }
-        }
-        const lastRegistered = localStorage.getItem("curio_last_registered_email");
-        if (lastRegistered && lastRegistered.toLowerCase() === normalized) {
-          return true;
-        }
-      } catch {
-        // fallback
-      }
-    }
-
-    return false;
-  };
-
-  // Email Validation Logic (Format + Database check)
+  // Email Validation Logic
   const validateEmailFormat = (val: string) => {
     const trimmed = val.trim();
     if (!trimmed) return false;
@@ -105,8 +77,8 @@ function ForgotPasswordForm() {
     const value = e.target.value;
     setEmail(value);
     if (hasSubmittedEmail) {
-      if (!validateEmailFormat(value) || !isEmailRegisteredInDatabase(value)) {
-        setEmailError("*Wrong email address*");
+      if (!validateEmailFormat(value)) {
+        setEmailError("*Please enter a valid email address*");
       } else {
         setEmailError(null);
       }
@@ -117,26 +89,23 @@ function ForgotPasswordForm() {
     e.preventDefault();
     setHasSubmittedEmail(true);
 
-    // 1. Format check
     if (!validateEmailFormat(email)) {
-      setEmailError("*Wrong email address*");
-      return;
-    }
-
-    // 2. Database existence check (When Backend API is connected, replace with: const res = await fetch('/api/auth/forgot-password', ...))
-    if (!isEmailRegisteredInDatabase(email)) {
-      setEmailError("*Wrong email address*");
+      setEmailError("*Please enter a valid email address*");
       return;
     }
 
     setEmailError(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await authApi.forgotPassword({ email: email.trim() });
       setStep("otp");
       setResendTimer(30);
-    }, 600);
+    } catch (err: any) {
+      setEmailError(err.message || "*Unable to send OTP code to this email*");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle OTP input change
@@ -159,14 +128,10 @@ function ForgotPasswordForm() {
     }
   };
 
-  // Demo generated OTP (defaults to 123456 for testing)
-  const [currentDemoOtp, setCurrentDemoOtp] = useState("123456");
-
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullOtp = otp.join("");
     
-    // 1. Completeness check
     if (fullOtp.length < 6) {
       setOtpError("*Please enter a complete 6-digit OTP code*");
       return;
@@ -175,19 +140,32 @@ function ForgotPasswordForm() {
     setIsLoading(true);
     setOtpError(null);
 
-    // 2. OTP Validity Check (When backend is connected, replace with: const res = await fetch('/api/auth/verify-otp', ...))
-    setTimeout(() => {
-      setIsLoading(false);
-      if (fullOtp !== currentDemoOtp) {
-        setOtpError("*Invalid OTP code. Please try again (Demo OTP: 123456)*");
-        return;
-      }
-
+    try {
+      await authApi.verifyOtp({ email: email.trim(), otp: fullOtp });
       setStep("new_password");
-    }, 600);
+    } catch (err: any) {
+      setOtpError(err.message || "*Invalid OTP code. Please try again*");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResendOTP = async () => {
+    if (resendTimer > 0 || isLoading) return;
+    setIsLoading(true);
+    setOtpError(null);
+    try {
+      await authApi.forgotPassword({ email: email.trim() });
+      setResendTimer(30);
+      setOtp(["", "", "", "", "", ""]);
+    } catch (err: any) {
+      setOtpError(err.message || "*Failed to resend OTP*");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
 
@@ -202,10 +180,20 @@ function ForgotPasswordForm() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const fullOtp = otp.join("");
+      await authApi.resetPassword({
+        email: email.trim(),
+        otp: fullOtp,
+        password,
+        confirm_password: confirmPassword,
+      });
       setStep("success");
-    }, 600);
+    } catch (err: any) {
+      setPasswordError(err.message || "*Failed to reset password. Please try again*");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -461,13 +449,11 @@ function ForgotPasswordForm() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setResendTimer(30);
-                            setOtp(["", "", "", "", "", ""]);
-                          }}
-                          className="text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1"
+                          onClick={handleResendOTP}
+                          disabled={isLoading}
+                          className="text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-60"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
+                          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
                           <span>Resend OTP</span>
                         </button>
                       )}

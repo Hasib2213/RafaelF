@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export interface PlanConfig {
   id: string;
@@ -35,8 +36,14 @@ export default function InAppPricingCard({
   onMouseEnter,
   onMouseLeave,
 }: InAppPricingCardProps) {
+  const { isAuthenticated } = useAuth();
   // Dynamic bold highlight: active if currently hovered OR if selected and no other card is hovered
   const isPrimary = isHovered ?? isSelected;
+  const targetHref = plan.buttonHref
+    ? isAuthenticated
+      ? plan.buttonHref
+      : `/login?redirect=${encodeURIComponent(plan.buttonHref)}`
+    : undefined;
 
   return (
     <div
@@ -150,9 +157,9 @@ export default function InAppPricingCard({
             : "bg-white/20 border border-white/10 group-hover:bg-white/30"
         } ${isSelected ? "ring-2 ring-white/50" : ""}`}
       >
-        {plan.buttonHref ? (
+        {targetHref ? (
           <Link
-            href={plan.buttonHref}
+            href={targetHref}
             className="flex items-center gap-2 text-white font-bold text-lg font-['Lato',sans-serif] hover:scale-105 active:scale-95 transition-transform"
           >
             <span>{plan.buttonText}</span>

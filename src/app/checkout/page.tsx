@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
@@ -117,35 +117,83 @@ const COUNTRIES = [
 
 type CardType = "visa" | "mastercard" | "credit-card";
 
+import { useAuth } from "@/context/AuthContext";
+import { subscriptionsApi } from "@/lib/api";
+import { AlertCircle } from "lucide-react";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan");
+  const planSlug = searchParams.get("plan") || "pro";
+  const planIdParam = searchParams.get("plan_id");
+  const { user, refreshUser } = useAuth();
 
   // Selected Card Type state for dynamic switching
   const [selectedCardType, setSelectedCardType] = useState<CardType>("visa");
+  const [currentPlan, setCurrentPlan] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    country: "Bangladesh",
-    address: "",
+    firstName: user?.first_name || "",
+    lastName: user?.last_name || "",
+    phone: user?.phone || "",
+    email: user?.email || "",
+    country: user?.address?.includes("Bangladesh") ? "Bangladesh" : "United States",
+    address: user?.address || "Dhaka, Bangladesh",
     city: "",
     state: "",
-    zipCode: "",
+    zipCode: "1205",
     additionalInfo: "",
     cardNumber: "4242 5859 5684 2585",
     cardExpiry: "12/28",
     cardCvc: "123",
-    nameOnCard: "Abir Hossain",
+    nameOnCard: user?.full_name || "Abir Hossain",
     paymentCountry: "Bangladesh",
     paymentZip: "1205",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Sync user info when available
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: prev.firstName || user.first_name || "",
+        lastName: prev.lastName || user.last_name || "",
+        email: prev.email || user.email || "",
+        phone: prev.phone || user.phone || "",
+        address: prev.address || user.address || "Dhaka, Bangladesh",
+        nameOnCard: prev.nameOnCard || user.full_name || "Abir Hossain",
+      }));
+    }
+  }, [user]);
+
+  // Load plan details from backend
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPlan() {
+      try {
+        const plans = await subscriptionsApi.getPlans();
+        if (isMounted && Array.isArray(plans)) {
+          const matched =
+            plans.find((p: any) => p.id === planIdParam || p.slug === planSlug) ||
+            plans.find((p: any) => p.slug === "pro") ||
+            plans[0];
+          if (matched) setCurrentPlan(matched);
+        }
+      } catch {
+        // Fallback to query param
+      }
+    }
+    loadPlan();
+    return () => {
+      isMounted = false;
+    };
+  }, [planSlug, planIdParam]);
 
   // Dynamic card selection handler
   const handleSelectCardType = (type: CardType) => {
@@ -181,26 +229,56 @@ function CheckoutContent() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setErrorMessage(null);
+
+    try {
+      const planId = currentPlan?.id || planIdParam || "fa6c61f6-d7ff-463c-aae7-77eb0a316c49";
+      const billingCycle = currentPlan?.billing_cycle || (planSlug === "enterprise" ? "yearly" : "monthly");
+      const cleanCard = formData.cardNumber.replace(/\s+/g, "");
+      const last4 = cleanCard.slice(-4) || "2585";
+
+      await subscriptionsApi.checkout(planId, billingCycle, {
+        first_name: formData.firstName || user?.first_name || "User",
+        last_name: formData.lastName || user?.last_name || "Account",
+        email: formData.email || user?.email || "user@curio.com",
+        phone: formData.phone || user?.phone || "",
+        address: formData.address || user?.address || "Dhaka, Bangladesh",
+        country: formData.paymentCountry || formData.country || "Bangladesh",
+        city: formData.city || "Dhaka",
+        state: formData.state || "",
+        zip_code: formData.paymentZip || formData.zipCode || "1205",
+        card_brand: selectedCardType,
+        card_last4: last4,
+        card_number: `**** **** **** ${last4}`,
+      });
+
+      await refreshUser();
       setIsSuccess(true);
-    }, 1200);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to process subscription payment.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma Desktop-51 Side Panel: 240px wide) */}
-      <FeedSidebar />
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar (Figma Desktop-51 Nav: 80px high, right-aligned profile) */}
         <FeedNavbar
           showSearch={false}
-          userSubtitle="abir07@gmai.com"
+          userSubtitle={user?.email || "abir07@gmai.com"}
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
         {/* Page Inner Container (Figma Frame 2147227640: left 264px, top 104px, width 1152px) */}
@@ -213,13 +291,24 @@ function CheckoutContent() {
               <h1 className="text-2xl sm:text-[28px] font-semibold text-white leading-[135%] tracking-[-0.02em] font-['Lato',sans-serif]">
                 Billing Information
               </h1>
-              {plan && (
+              {(currentPlan?.name || planSlug) && (
                 <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 border border-white/25 text-sm font-medium text-white/90">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Selected Plan: <strong className="capitalize text-white font-bold">{plan}</strong></span>
+                  <span>Selected Plan: <strong className="capitalize text-white font-bold">{currentPlan?.name || planSlug}</strong></span>
                 </div>
               )}
             </div>
+
+            {/* Error Notification */}
+            {errorMessage && (
+              <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 flex items-center gap-3 animate-fade-in">
+                <AlertCircle className="w-6 h-6 text-rose-400 shrink-0" />
+                <div>
+                  <p className="font-semibold text-white">Payment Failed</p>
+                  <p className="text-xs text-rose-200/90">{errorMessage}</p>
+                </div>
+              </div>
+            )}
 
             {/* Success Toast / Notification */}
             {isSuccess && (
@@ -228,7 +317,7 @@ function CheckoutContent() {
                 <div>
                   <p className="font-semibold text-white">Payment & Booking Confirmed!</p>
                   <p className="text-xs text-emerald-200/90">
-                    Your details and payment have been successfully processed. An invoice has been emailed to {formData.email || "abir07@gmai.com"}.
+                    Your details and payment have been successfully processed. An invoice has been emailed to {formData.email || user?.email || "abir07@gmai.com"}.
                   </p>
                 </div>
               </div>
@@ -593,8 +682,10 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0F172A] text-white flex items-center justify-center">Loading checkout...</div>}>
-      <CheckoutContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div className="min-h-screen bg-[#0F172A] text-white flex items-center justify-center">Loading checkout...</div>}>
+        <CheckoutContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Bell, Menu } from "lucide-react";
 import NotificationModal from "./NotificationModal";
+import { useAuth } from "@/context/AuthContext";
+import { notificationsApi, resolveAvatarUrl } from "@/lib/api";
 
 interface FeedNavbarProps {
   onSearch?: (query: string) => void;
@@ -18,8 +21,51 @@ export default function FeedNavbar({
   userSubtitle = "Admin",
   onMobileMenuToggle,
 }: FeedNavbarProps) {
+  const { user } = useAuth();
   const [searchVal, setSearchVal] = useState("");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [user?.avatar_url, user?.avatar]);
+
+  const avatarUrl = resolveAvatarUrl(user?.avatar_url || user?.avatar);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await notificationsApi.list();
+      if (res && res.results) {
+        setNotifications(res.results);
+        setUnreadCount(res.results.filter((n: any) => !n.is_read).length);
+      }
+    } catch {
+      // not authenticated or network error
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [user]);
+
+  const displayName = user
+    ? user.full_name || `${user.first_name} ${user.last_name}`.trim() || user.email.split("@")[0]
+    : "Abir Hossain";
+
+  const displaySubtitle = user
+    ? user.role === "admin"
+      ? "Admin"
+      : `${user.plan || "Free"} Plan`
+    : userSubtitle;
+
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "U";
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchVal(e.target.value);
@@ -68,28 +114,43 @@ export default function FeedNavbar({
           >
             <Bell className="w-5 h-5" />
             {/* Notification_Badge (Figma) */}
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#FF4B4B] text-white text-[9px] font-bold font-['Roboto',sans-serif] rounded-full flex items-center justify-center shadow-md animate-pulse">
-              12
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#FF4B4B] text-white text-[9px] font-bold font-['Roboto',sans-serif] rounded-full flex items-center justify-center shadow-md animate-pulse">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </button>
 
-          {/* User Profile Pill (Figma Frame 2147227759: Abir Hossain / Admin) */}
+          {/* User Profile Pill */}
           <Link
             href="/profile"
             className="flex items-center gap-2.5 h-11 px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 border border-white/10 transition-all select-none"
           >
-            {/* Avatar (Figma Ellipse 2: 32px x 32px) */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#A842D4] flex items-center justify-center text-xs font-semibold text-white ring-1 ring-white/40 overflow-hidden shadow-inner shrink-0">
-              <span>AH</span>
-            </div>
+            {/* Avatar */}
+            {avatarUrl && !imageError ? (
+              <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/40 shrink-0 bg-slate-800">
+                <Image
+                  src={avatarUrl}
+                  alt={displayName}
+                  fill
+                  unoptimized
+                  onError={() => setImageError(true)}
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#A842D4] flex items-center justify-center text-xs font-semibold text-white ring-1 ring-white/40 overflow-hidden shadow-inner shrink-0">
+                <span>{initials}</span>
+              </div>
+            )}
 
-            {/* User Info (Abir Hossain / Admin) */}
-            <div className="flex flex-col text-left justify-center">
-              <span className="text-base font-semibold text-white leading-tight font-['Lato',sans-serif] -my-0.5">
-                Abir Hossain
+            {/* User Info */}
+            <div className="flex flex-col text-left justify-center max-w-[120px] sm:max-w-[150px]">
+              <span className="text-base font-semibold text-white leading-tight font-['Lato',sans-serif] -my-0.5 truncate">
+                {displayName}
               </span>
-              <span className="text-sm font-normal text-[#D0D0D0] leading-tight font-['Lato',sans-serif]">
-                {userSubtitle}
+              <span className="text-sm font-normal text-[#D0D0D0] leading-tight font-['Lato',sans-serif] truncate">
+                {displaySubtitle}
               </span>
             </div>
           </Link>
@@ -100,6 +161,8 @@ export default function FeedNavbar({
       <NotificationModal
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
+        notifications={notifications}
+        onRefresh={fetchNotifications}
       />
     </>
   );

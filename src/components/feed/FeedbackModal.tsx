@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { Check } from "lucide-react";
 import { BriefingItem } from "./BriefingCard";
+import { feedbackApi } from "@/lib/api";
 
 interface FeedbackModalProps {
   isOpen?: boolean;
@@ -74,16 +75,32 @@ export default function FeedbackModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
+    try {
+      await feedbackApi.submit({
+        briefing_id: briefing?.id,
+        rating,
+        useful_feedback: selectedOption,
+        thoughts,
+      });
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
+    }
+    onSubmitFeedback?.({
+      rating,
+      selectedOption,
+      comment: thoughts,
+      requestImproved: rating <= 3,
+    });
     setTimeout(() => {
       if (onSubmitSuccess) {
         onSubmitSuccess();
       } else {
         onClose();
       }
-    }, 1200);
+    }, 600);
   };
 
   const thumbnailSrc = briefing?.thumbnail || "/images/summary.png";

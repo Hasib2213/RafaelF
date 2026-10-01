@@ -311,6 +311,9 @@ export default function AllUsersPage() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };

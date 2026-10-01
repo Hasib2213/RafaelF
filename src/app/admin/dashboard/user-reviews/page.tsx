@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { adminApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -69,7 +70,7 @@ function CheckBadgeIcon({ className = "w-5 h-5" }: { className?: string }) {
 ================================================================ */
 
 interface Review {
-  id: number;
+  id: number | string;
   name: string;
   subtitle: string;
   avatar: string; // initials
@@ -310,7 +311,7 @@ function ReviewCard({
 }: {
   review: Review;
   variant: "featured" | "visitor";
-  onAction: (id: number) => void;
+  onAction: (id: number | string) => void;
 }) {
   const avatarColors = [
     "from-[#3E8AFB] to-[#9369FD]",
@@ -318,7 +319,10 @@ function ReviewCard({
     "from-[#2563EB] to-[#36C1FB]",
     "from-[#9369FD] to-[#3E8AFB]",
   ];
-  const colorIdx = review.id % avatarColors.length;
+  const colorIdx =
+    typeof review.id === "number"
+      ? review.id % avatarColors.length
+      : review.id.length % avatarColors.length;
 
   return (
     <motion.div
@@ -421,23 +425,76 @@ export default function UserReviewsPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleRemoveFeatured = (id: number) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadReviews() {
+      try {
+        const res = await adminApi.getReviews();
+        if (isMounted && res) {
+          const list = Array.isArray(res) ? res : res.results || [];
+          if (list.length > 0) {
+            const mapped: Review[] = list.map((r: any) => ({
+              id: r.id,
+              name: r.user_name || "User",
+              subtitle: r.subtitle || r.briefing_title || "Platform Review",
+              avatar: (r.user_name || "U").slice(0, 2).toUpperCase(),
+              rating: r.rating || 5,
+              summaryTag: r.summary_tag || "Great summary",
+              review: r.thoughts || "No comment provided.",
+              betterVersionTag: r.better_version_tag || "Feedback submitted",
+              isFeatured: !!r.is_featured,
+            }));
+
+            const featured = mapped.filter((r) => r.isFeatured);
+            const visitors = mapped.filter((r) => !r.isFeatured);
+            if (featured.length > 0) setFeaturedReviews(featured);
+            if (visitors.length > 0) setVisitorComments(visitors);
+          }
+        }
+      } catch {
+        // Fallback to mock data
+      }
+    }
+    loadReviews();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleRemoveFeatured = async (id: number | string) => {
     setFeaturedReviews((prev) => prev.filter((r) => r.id !== id));
     showToast("Review removed from featured.");
+    try {
+      if (typeof id === "string") {
+        await adminApi.toggleFeatureReview(id);
+      }
+    } catch {
+      // ignore
+    }
   };
 
-  const handleAddToLandingPage = (id: number) => {
+  const handleAddToLandingPage = async (id: number | string) => {
     const review = visitorComments.find((r) => r.id === id);
     if (review) {
       setFeaturedReviews((prev) => [...prev, { ...review, isFeatured: true }]);
       setVisitorComments((prev) => prev.filter((r) => r.id !== id));
       showToast(`"${review.name}" review added to landing page!`);
+      try {
+        if (typeof id === "string") {
+          await adminApi.toggleFeatureReview(id);
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Download, Sparkles, Check, Play, BookOpen, Volume2 } from "lucide-react";
+import { libraryApi, briefingsApi } from "@/lib/api";
 
 export interface BriefingItem {
   id: string;
@@ -17,6 +18,8 @@ export interface BriefingItem {
   fullSummary?: string;
   keyTakeaways?: string[];
   timeframe?: "daily" | "weekly" | "both";
+  isSaved?: boolean;
+  audioUrl?: string;
 }
 
 interface BriefingCardProps {
@@ -27,6 +30,8 @@ interface BriefingCardProps {
 export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProps) {
   const [downloaded, setDownloaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -34,7 +39,38 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
     setTimeout(() => setDownloaded(false), 2500);
   };
 
-  const [isSaved, setIsSaved] = useState(false);
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSaving) return;
+    setIsSaving(true);
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(briefing.id);
+    if (!isUuid) {
+      console.warn(`[BriefingCard] Skipping toggleSave API call: "${briefing.id}" is not a valid UUID.`);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      await libraryApi.toggleSave(briefing.id);
+    } catch (err) {
+      console.error("Failed to toggle save:", err);
+      setIsSaved(!nextSaved);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePlayAudio = () => {
+    onOpenModal?.(briefing);
+    try {
+      briefingsApi.listen(briefing.id).catch(() => {});
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div className="w-full sm:max-w-[291px] min-h-[434px] flex flex-col items-center rounded-2xl overflow-hidden border border-white/15 shadow-xl transition-all duration-300 hover:border-white/35 hover:-translate-y-1 hover:shadow-purple-950/40 bg-[#2B2A7D] [background-image:linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] pb-4 isolate">
@@ -110,7 +146,7 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
           {/* Primary Action Button (Figma: 147px x 44px, gradient, radius 8px, gap 8px, Play Audio) */}
           <button
             type="button"
-            onClick={() => onOpenModal?.(briefing)}
+            onClick={handlePlayAudio}
             className="w-[147px] h-[44px] px-2 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] hover:brightness-110 active:scale-95 text-white text-base font-semibold font-['Lato',sans-serif] flex items-center justify-center gap-2 shadow-md shadow-purple-900/30 transition-all select-none shrink-0"
           >
             {/* Exact Vector Play/Triangle Icon from Figma: 16px x 16px, stroke 1.33333px */}
@@ -169,7 +205,8 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
           {/* Bookmark / Library Button (Figma Frame Layer 2 Vector: 44px x 44px, radius 8px, bg white/20) */}
           <button
             type="button"
-            onClick={() => setIsSaved(!isSaved)}
+            onClick={handleToggleSave}
+            disabled={isSaving}
             title={isSaved ? "Saved to Library" : "Save to Library"}
             aria-label="Bookmark to Library"
             className={`w-[44px] h-[44px] rounded-lg flex items-center justify-center transition-all select-none shrink-0 cursor-pointer ${

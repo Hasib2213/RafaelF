@@ -16,6 +16,7 @@ import {
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "./LogoutModal";
 import FeedbackModal from "./FeedbackModal";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavItem {
   name: string;
@@ -40,12 +41,14 @@ interface FeedSidebarProps {
 
 export default function FeedSidebar({ mobileOpen = false, onMobileClose }: FeedSidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false);
-    window.location.href = "/";
+    logout();
+    window.location.href = "/login";
   };
 
   const sidebarContent = (

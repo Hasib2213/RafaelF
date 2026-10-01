@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, CheckCircle2, Globe, FileText, Shield } from "lucide-react";
+import { Menu, X, CheckCircle2, Globe, FileText, Shield, Loader2 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { adminApi, settingsApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -76,6 +77,34 @@ export default function PlatformSettingPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchSettings() {
+      try {
+        const s = await settingsApi.getSettings();
+        if (isMounted && s) {
+          setSiteInfo({
+            address: s.address || DEFAULT_SITE_INFO.address,
+            email: s.email || DEFAULT_SITE_INFO.email,
+            mobile: s.mobile || DEFAULT_SITE_INFO.mobile,
+            facebook: s.facebook || DEFAULT_SITE_INFO.facebook,
+            xProfile: s.x_profile || DEFAULT_SITE_INFO.xProfile,
+            instagram: s.instagram || DEFAULT_SITE_INFO.instagram,
+          });
+          if (s.terms_of_use) setTermsText(s.terms_of_use);
+          if (s.privacy_policy) setPrivacyText(s.privacy_policy);
+        }
+      } catch {
+        // fallback to defaults
+      }
+    }
+    fetchSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -86,13 +115,31 @@ export default function PlatformSettingPage() {
     setSiteInfo((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
-    if (activeTab === "contact") {
-      showToast("Site Info & Contact settings saved successfully!");
-    } else if (activeTab === "terms") {
-      showToast("Terms of Use updated successfully!");
-    } else {
-      showToast("Privacy Policy updated successfully!");
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await adminApi.updatePlatformSettings({
+        address: siteInfo.address,
+        email: siteInfo.email,
+        mobile: siteInfo.mobile,
+        facebook: siteInfo.facebook,
+        x_profile: siteInfo.xProfile,
+        instagram: siteInfo.instagram,
+        terms_of_use: termsText,
+        privacy_policy: privacyText,
+      });
+
+      if (activeTab === "contact") {
+        showToast("Site Info & Contact settings saved successfully!");
+      } else if (activeTab === "terms") {
+        showToast("Terms of Use updated successfully!");
+      } else {
+        showToast("Privacy Policy updated successfully!");
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to update platform settings");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -112,6 +159,9 @@ export default function PlatformSettingPage() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };

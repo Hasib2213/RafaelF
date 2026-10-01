@@ -3,53 +3,43 @@
 import React, { useEffect } from "react";
 import { X, CheckCircle2 } from "lucide-react";
 
+import { notificationsApi } from "@/lib/api";
+
 export interface NotificationItem {
   id: string;
   title: string;
-  time: string;
+  time?: string;
+  time_ago?: string;
   body: string;
   avatarUrl?: string;
+  avatar_url?: string;
   unread?: boolean;
+  is_read?: boolean;
 }
 
 interface NotificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   notifications?: NotificationItem[];
+  onRefresh?: () => void;
 }
 
 const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
   {
     id: "1",
-    title: "Burkina Faso",
-    time: "5 mins ago",
-    body: "This motivational speech emphasizes taking full responsibility for your life and future....",
-    avatarUrl: "/images/happy_user.png",
-    unread: true,
+    title: "Weekly Recap Ready",
+    time_ago: "5 mins ago",
+    body: "Your weekly digest of 12 top creator videos has been synthesized into a 5-minute audio briefing.",
+    avatar_url: "/images/summary.png",
+    is_read: false,
   },
   {
     id: "2",
     title: "Burkina Faso",
-    time: "5 mins ago",
+    time_ago: "15 mins ago",
     body: "This motivational speech emphasizes taking full responsibility for your life and future....",
-    avatarUrl: "/images/happy_user.png",
-    unread: true,
-  },
-  {
-    id: "3",
-    title: "Burkina Faso",
-    time: "5 mins ago",
-    body: "This motivational speech emphasizes taking full responsibility for your life and future....",
-    avatarUrl: "/images/happy_user.png",
-    unread: false,
-  },
-  {
-    id: "4",
-    title: "Burkina Faso",
-    time: "5 mins ago",
-    body: "This motivational speech emphasizes taking full responsibility for your life and future....",
-    avatarUrl: "/images/happy_user.png",
-    unread: false,
+    avatar_url: "/images/happy_user.png",
+    is_read: false,
   },
 ];
 
@@ -57,6 +47,7 @@ export default function NotificationModal({
   isOpen,
   onClose,
   notifications = DEFAULT_NOTIFICATIONS,
+  onRefresh,
 }: NotificationModalProps) {
   // ESC key listener & body scroll lock
   useEffect(() => {
@@ -77,7 +68,32 @@ export default function NotificationModal({
     };
   }, [isOpen, onClose]);
 
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationsApi.markAllRead();
+      onRefresh?.();
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
+
+  const handleItemClick = async (item: NotificationItem) => {
+    const isUnread = item.is_read === false || item.unread === true;
+    if (isUnread) {
+      try {
+        await notificationsApi.markRead(item.id);
+        onRefresh?.();
+      } catch (err) {
+        console.error("Failed to mark notification as read:", err);
+      }
+    }
+  };
+
   if (!isOpen) return null;
+
+  const unreadCount = notifications.filter(
+    (n) => n.is_read === false || n.unread === true
+  ).length;
 
   return (
     <div
@@ -99,83 +115,115 @@ export default function NotificationModal({
       >
         {/* Header (Figma 'tittle' row: width 623px, height 38px) */}
         <div className="flex items-center justify-between gap-4 w-full shrink-0 border-b border-white/10 pb-4">
-          <h2
-            id="notification-modal-title"
-            className="text-white text-2xl sm:text-[28px] font-semibold font-['Lato',sans-serif] leading-[135%] tracking-[-0.02em]"
-          >
-            Notifications
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2
+              id="notification-modal-title"
+              className="text-white text-2xl sm:text-[28px] font-semibold font-['Lato',sans-serif] leading-[135%] tracking-[-0.02em]"
+            >
+              Notifications
+            </h2>
+            {unreadCount > 0 && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FF4B4B] text-white font-bold">
+                {unreadCount} unread
+              </span>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs px-2.5 py-1 rounded-full bg-white/20 text-[#B5C8DB] font-medium font-['Inter',sans-serif]">
-              {notifications.length} New
-            </span>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                className="text-xs text-purple-300 hover:text-white underline cursor-pointer px-2 py-1"
+              >
+                Mark all read
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
               aria-label="Close notifications"
-              className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-[#D0D0D0] hover:text-white flex items-center justify-center transition-all active:scale-95"
+              className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-[#D0D0D0] hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Notifications List (Figma Frame 2147228102: width 623px, height 400px scrollable) */}
+        {/* Notifications List */}
         <div className="flex flex-col gap-2.5 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar max-h-[400px]">
-          {notifications.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`group relative flex items-center gap-4 p-4 rounded-xl transition-all duration-200 cursor-pointer ${
-                idx === 0 ? "rounded-t-xl" : ""
-              } bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-white/25 shadow-sm`}
-            >
-              {/* Unread indicator dot */}
-              {item.unread && (
-                <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[#FF4B4B] shadow-[0_0_8px_#FF4B4B]" />
-              )}
-
-              {/* Logo / Avatar (Figma: 60px x 60px) */}
-              <div className="w-[60px] h-[60px] shrink-0 rounded-xl overflow-hidden bg-gradient-to-tr from-[#2563EB]/40 to-[#A842D4]/40 border border-white/20 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
-                {item.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.avatarUrl}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback to placeholder if broken
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="text-white text-lg font-bold font-['Lato',sans-serif]">
-                    {item.title.substring(0, 2).toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              {/* Text Container (Figma 'text': width 515px, gap 4px) */}
-              <div className="flex flex-col flex-1 min-w-0">
-                {/* Title & Time row (Figma 'tittle': 30px height, Lato 20px Medium & Inter 14px Regular) */}
-                <div className="flex items-center justify-between gap-2 w-full">
-                  <h3 className="text-white text-base sm:text-xl font-normal font-['Lato',sans-serif] leading-[150%] tracking-[-0.01em] truncate group-hover:text-white transition-colors">
-                    {item.title}
-                  </h3>
-                  <span className="text-xs sm:text-sm text-[#D0D0D0] font-normal font-['Inter',sans-serif] leading-[150%] shrink-0 text-right">
-                    {item.time}
-                  </span>
-                </div>
-
-                {/* Body row (Figma 'body': Lato 16px Regular, color #D0D0D0) */}
-                <p className="text-[#D0D0D0] text-xs sm:text-sm md:text-base font-normal font-['Lato',sans-serif] leading-[150%] tracking-[-0.02em] line-clamp-2 mt-0.5">
-                  {item.body}
-                </p>
-              </div>
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center text-[#D0D0D0] text-sm">
+              No notifications right now
             </div>
-          ))}
+          ) : (
+            notifications.map((item, idx) => {
+              const isUnread = item.is_read === false || item.unread === true;
+              const avatar = item.avatar_url || item.avatarUrl;
+              const displayTime = item.time_ago || item.time || "Recently";
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  className={`group relative flex items-center gap-4 p-4 rounded-xl transition-all duration-200 cursor-pointer ${
+                    idx === 0 ? "rounded-t-xl" : ""
+                  } ${
+                    isUnread
+                      ? "bg-white/[0.10] border-white/25"
+                      : "bg-white/[0.04] border-white/10"
+                  } hover:bg-white/[0.14] border shadow-sm`}
+                >
+                  {/* Unread indicator dot */}
+                  {isUnread && (
+                    <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[#FF4B4B] shadow-[0_0_8px_#FF4B4B]" />
+                  )}
+
+                  {/* Logo / Avatar */}
+                  <div className="w-[60px] h-[60px] shrink-0 rounded-xl overflow-hidden bg-gradient-to-tr from-[#2563EB]/40 to-[#A842D4]/40 border border-white/20 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                    {avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatar}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="text-white text-lg font-bold font-['Lato',sans-serif]">
+                        {item.title.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Text Container */}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <h3
+                        className={`text-base sm:text-xl font-['Lato',sans-serif] leading-[150%] tracking-[-0.01em] truncate group-hover:text-white transition-colors ${
+                          isUnread ? "font-semibold text-white" : "font-normal text-white/80"
+                        }`}
+                      >
+                        {item.title}
+                      </h3>
+                      <span className="text-xs sm:text-sm text-[#D0D0D0] font-normal font-['Inter',sans-serif] leading-[150%] shrink-0 text-right">
+                        {displayTime}
+                      </span>
+                    </div>
+
+                    <p className="text-[#D0D0D0] text-xs sm:text-sm md:text-base font-normal font-['Lato',sans-serif] leading-[150%] tracking-[-0.02em] line-clamp-2 mt-0.5">
+                      {item.body}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
   );
 }
+

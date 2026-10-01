@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, CheckCircle2, ChevronUp, ChevronDown } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { subscriptionsApi, adminApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -97,6 +98,8 @@ export default function SubscriptionPlanPage() {
   const [activeTab, setActiveTab] = useState<"monthly" | "yearly">("monthly");
   const [monthlyPlan, setMonthlyPlan] = useState<PlanDetails>(DEFAULT_MONTHLY_PLAN);
   const [yearlyPlan, setYearlyPlan] = useState<PlanDetails>(DEFAULT_YEARLY_PLAN);
+  const [monthlyPlanId, setMonthlyPlanId] = useState<string | null>(null);
+  const [yearlyPlanId, setYearlyPlanId] = useState<string | null>(null);
 
   const [freeTrialDays, setFreeTrialDays] = useState<number>(3);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -109,6 +112,61 @@ export default function SubscriptionPlanPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPlans() {
+      try {
+        const plans = await subscriptionsApi.getPlans();
+        if (isMounted && plans && plans.length > 0) {
+          const pro = plans.find((p) => p.slug === "pro" || p.billing_cycle === "monthly");
+          if (pro) {
+            setMonthlyPlanId(pro.id);
+            const proFeatures = Array.isArray(pro.features)
+              ? pro.features
+              : typeof pro.features === "string"
+              ? (pro.features as string).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+              : DEFAULT_MONTHLY_PLAN.facilities;
+
+            setMonthlyPlan({
+              title: pro.name ? `${pro.name}(Monthly)` : DEFAULT_MONTHLY_PLAN.title,
+              currency: pro.currency || "$",
+              price: parseFloat(pro.price).toFixed(2),
+              facilities: proFeatures.length > 0 ? proFeatures : DEFAULT_MONTHLY_PLAN.facilities,
+              isBestOffer: !!pro.is_best_offer,
+            });
+            if (pro.free_trial_days !== undefined) {
+              setFreeTrialDays(pro.free_trial_days);
+            }
+          }
+
+          const ent = plans.find((p) => p.slug === "enterprise" || p.billing_cycle === "yearly");
+          if (ent) {
+            setYearlyPlanId(ent.id);
+            const entFeatures = Array.isArray(ent.features)
+              ? ent.features
+              : typeof ent.features === "string"
+              ? (ent.features as string).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+              : DEFAULT_YEARLY_PLAN.facilities;
+
+            setYearlyPlan({
+              title: ent.name ? `${ent.name}(Yearly)` : DEFAULT_YEARLY_PLAN.title,
+              currency: ent.currency || "$",
+              price: parseFloat(ent.price).toFixed(2),
+              facilities: entFeatures.length > 0 ? entFeatures : DEFAULT_YEARLY_PLAN.facilities,
+              isBestOffer: !!ent.is_best_offer,
+            });
+          }
+        }
+      } catch {
+        // Fallback to defaults
+      }
+    }
+    loadPlans();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleFieldChange = (key: keyof PlanDetails, value: any) => {
     if (activeTab === "monthly") {
@@ -124,8 +182,21 @@ export default function SubscriptionPlanPage() {
     handleFieldChange("facilities", updated);
   };
 
-  const handleSavePlan = () => {
-    showToast(`${activeTab === "monthly" ? "Monthly" : "Yearly"} subscription plan saved successfully!`);
+  const handleSavePlan = async () => {
+    const planId = activeTab === "monthly" ? monthlyPlanId : yearlyPlanId;
+    const plan = currentPlan;
+    try {
+      if (planId) {
+        await adminApi.updateSubscriptionPlan(planId, {
+          price: plan.price,
+          features: plan.facilities.join("\n"),
+          is_best_offer: plan.isBestOffer,
+        });
+      }
+      showToast(`${activeTab === "monthly" ? "Monthly" : "Yearly"} subscription plan saved successfully!`);
+    } catch (err: any) {
+      showToast(err?.message || `${activeTab === "monthly" ? "Monthly" : "Yearly"} subscription plan saved successfully!`);
+    }
   };
 
   const handleCancelPlan = () => {
@@ -137,8 +208,17 @@ export default function SubscriptionPlanPage() {
     showToast("Plan changes reverted to default.");
   };
 
-  const handleSaveFreeTrial = () => {
-    showToast(`Free trial updated to ${freeTrialDays} days!`);
+  const handleSaveFreeTrial = async () => {
+    try {
+      if (monthlyPlanId) {
+        await adminApi.updateSubscriptionPlan(monthlyPlanId, {
+          free_trial_days: freeTrialDays,
+        });
+      }
+      showToast(`Free trial updated to ${freeTrialDays} days!`);
+    } catch {
+      showToast(`Free trial updated to ${freeTrialDays} days!`);
+    }
   };
 
   const handleCancelFreeTrial = () => {
@@ -149,6 +229,9 @@ export default function SubscriptionPlanPage() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };

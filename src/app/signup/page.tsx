@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Eye, EyeOff, Sparkles, Headphones, CheckCircle2, ArrowRight } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion } from "framer-motion";
+
+import { authApi } from "@/lib/api";
 
 function GoogleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -31,8 +33,11 @@ function GoogleIcon({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
-export default function SignUpPage() {
+function SignUpFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,7 +48,7 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -65,28 +70,23 @@ export default function SignUpPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const normalizedEmail = email.trim().toLowerCase();
-      
-      // Save to registered users list in localStorage for auth persistence
-      if (typeof window !== "undefined") {
-        try {
-          const savedUsers = localStorage.getItem("curio_registered_users");
-          const usersList: string[] = savedUsers ? JSON.parse(savedUsers) : [];
-          if (!usersList.includes(normalizedEmail)) {
-            usersList.push(normalizedEmail);
-            localStorage.setItem("curio_registered_users", JSON.stringify(usersList));
-          }
-          localStorage.setItem("curio_last_registered_email", normalizedEmail);
-        } catch {
-          // fallback
-        }
-      }
+    try {
+      await authApi.register({
+        email: email.trim(),
+        password,
+        confirm_password: confirmPassword,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+      });
 
       const encodedEmail = encodeURIComponent(email.trim());
-      router.push(`/login?registered=true&email=${encodedEmail}`);
-    }, 600);
+      const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : "";
+      router.push(`/login?registered=true&email=${encodedEmail}${redirectQuery}`);
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignUp = () => {
@@ -335,7 +335,7 @@ export default function SignUpPage() {
                 <p className="text-sm sm:text-base text-[#D0D0D0] font-medium text-center">
                   Already have an account?{" "}
                   <Link
-                    href="/login"
+                    href={redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : "/login"}
                     className="text-white hover:text-cyan-300 font-semibold underline underline-offset-4 transition-colors"
                   >
                     Log In
@@ -365,5 +365,19 @@ export default function SignUpPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white">
+          <div className="w-10 h-10 border-2 border-white/20 border-t-[#3E8AFB] rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <SignUpFormContent />
+    </Suspense>
   );
 }

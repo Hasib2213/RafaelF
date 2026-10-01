@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { adminApi } from "@/lib/api";
 import {
   CaretDownIcon,
   CaretLeftIcon,
@@ -163,17 +164,67 @@ export default function CompleteActivityAuditPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isExporting, setIsExporting] = useState(false);
+  const [apiLogs, setApiLogs] = useState<AuditLogEntry[] | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAuditLogs() {
+      try {
+        const res = await adminApi.getAuditLogs(currentPage);
+        if (isMounted && res) {
+          const list = Array.isArray(res) ? res : res.results || [];
+          if (list.length > 0) {
+            const mapped: AuditLogEntry[] = list.map((item: any) => ({
+              id: item.id ? `LOG-${item.id.toString().slice(-4)}` : `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+              timestamp: item.created_at
+                ? new Date(item.created_at).toLocaleString("en-US", {
+                    hour: "numeric",
+                    minute: "numeric",
+                    hour12: true,
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "Recent",
+              category: (["Reading", "Security", "Billing", "Audiobook", "Review", "Bookmark", "Milestone"].includes(item.category)
+                ? item.category
+                : "Security") as any,
+              title: item.title || item.action || "User Activity Logged",
+              description: item.description || item.details || "Activity details processed by server.",
+              device: item.device || item.user_agent || "Web Client",
+              ip: item.ip_address || item.ip || "127.0.0.1",
+              location: item.location || "Local",
+              status: item.status || "Completed",
+              statusType: (item.status_type || (item.status === "Failed" ? "warning" : "success")) as any,
+            }));
+            setApiLogs(mapped);
+          }
+        }
+      } catch {
+        // Fallback to static mock data
+      }
+    }
+    loadAuditLogs();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPage]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };
 
+  const logsToDisplay = apiLogs && apiLogs.length > 0 ? apiLogs : AUDIT_LOGS;
+
   // Filter logs by search term & category
   const filteredLogs = useMemo(() => {
-    return AUDIT_LOGS.filter((entry) => {
+    return logsToDisplay.filter((entry) => {
       const matchesCategory =
         selectedCategory === "All" || entry.category.toLowerCase() === selectedCategory.toLowerCase();
       const matchesSearch =
@@ -185,7 +236,7 @@ export default function CompleteActivityAuditPage() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [logsToDisplay, searchTerm, selectedCategory]);
 
   const handleExport = () => {
     setIsExporting(true);

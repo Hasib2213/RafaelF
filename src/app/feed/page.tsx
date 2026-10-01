@@ -10,7 +10,30 @@ import FeedbackModal from "@/components/feed/FeedbackModal";
 import ImproveSummaryModal from "@/components/feed/ImproveSummaryModal";
 import ThankYouModal from "@/components/feed/ThankYouModal";
 import Footer from "@/components/Footer";
-import { RotateCw, Sparkles, Star } from "lucide-react";
+import { RotateCw, Sparkles, Star, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { briefingsApi } from "@/lib/api";
+import { Briefing } from "@/lib/types/api";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
+function mapApiBriefingToItem(b: any): BriefingItem {
+  return {
+    id: b.id,
+    title: b.title,
+    duration: b.duration || "10:00",
+    thumbnail: b.thumbnail_url || "/images/summary.png",
+    channelName: b.channel_name,
+    subscribers: b.subscribers,
+    channelAvatarColor: b.channel_avatar_color || "from-purple-600 to-indigo-600",
+    channelInitials: b.channel_initials || b.channel_name.slice(0, 2).toUpperCase(),
+    summary: b.summary,
+    fullSummary: b.full_summary,
+    keyTakeaways: b.key_takeaways,
+    timeframe: (b.timeframe === "weekly" ? "weekly" : "daily") as "daily" | "weekly",
+    isSaved: b.is_saved,
+    audioUrl: b.audio_url,
+  };
+}
 
 // Mock briefing data reflecting Curio's YouTube AI briefings
 const initialBriefings: BriefingItem[] = [
@@ -257,6 +280,7 @@ const initialBriefings: BriefingItem[] = [
 ];
 
 export default function FeedPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"daily" | "weekly">("daily");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedBriefing, setSelectedBriefing] = useState<BriefingItem | null>(null);
@@ -267,16 +291,47 @@ export default function FeedPage() {
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
   const [activeImproveBriefing, setActiveImproveBriefing] = useState<BriefingItem | null>(null);
 
+  const [briefings, setBriefings] = useState<BriefingItem[]>([]);
+  const [isLoadingBriefings, setIsLoadingBriefings] = useState(true);
+
+  const fetchBriefings = async (timeframe: "daily" | "weekly", query: string) => {
+    setIsLoadingBriefings(true);
+    try {
+      const res = await briefingsApi.list({
+        timeframe,
+        search: query.trim() || undefined,
+      });
+      if (res && res.results && res.results.length > 0) {
+        setBriefings(res.results.map(mapApiBriefingToItem));
+      } else if (res && Array.isArray(res) && (res as any).length > 0) {
+        setBriefings((res as any).map(mapApiBriefingToItem));
+      } else if (!query.trim()) {
+        setBriefings(initialBriefings.filter((i) => i.timeframe === timeframe));
+      } else {
+        setBriefings([]);
+      }
+    } catch (err) {
+      console.error("Failed to load briefings:", err);
+      setBriefings(initialBriefings.filter((i) => i.timeframe === timeframe));
+    } finally {
+      setIsLoadingBriefings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBriefings(activeTab, searchQuery);
+  }, [activeTab, searchQuery]);
+
   const handleOpenFeedback = (briefing?: BriefingItem | null) => {
-    setActiveFeedbackBriefing(briefing || selectedBriefing || initialBriefings[0]);
-    setSelectedBriefing(null); // Dismiss audio player modal so its backdrop does NOT double-stack into blackness
+    setActiveFeedbackBriefing(briefing || selectedBriefing || briefings[0] || initialBriefings[0]);
+    setSelectedBriefing(null);
     setImproveModalOpen(false);
     setThankYouModalOpen(false);
     setFeedbackModalOpen(true);
   };
 
   const handleOpenImprove = (briefing?: BriefingItem | null) => {
-    setActiveImproveBriefing(briefing || activeFeedbackBriefing || selectedBriefing || initialBriefings[0]);
+    setActiveImproveBriefing(briefing || activeFeedbackBriefing || selectedBriefing || briefings[0] || initialBriefings[0]);
     setSelectedBriefing(null);
     setFeedbackModalOpen(false);
     setThankYouModalOpen(false);
@@ -290,7 +345,7 @@ export default function FeedPage() {
     setThankYouModalOpen(true);
   };
 
-  // Allow auto-opening Desktop - 60, 61, 62, or 63 modal via URL hash or query (e.g., /feed?63=true)
+  // Allow auto-opening modal via URL hash or query
   useEffect(() => {
     if (typeof window !== "undefined") {
       const search = window.location.search;
@@ -308,7 +363,7 @@ export default function FeedPage() {
         hash.includes("62") ||
         hash.includes("improve")
       ) {
-        handleOpenImprove(initialBriefings[0]);
+        handleOpenImprove(briefings[0] || initialBriefings[0]);
       } else if (
         search.includes("rate") ||
         search.includes("feedback") ||
@@ -318,39 +373,24 @@ export default function FeedPage() {
         hash.includes("feedback") ||
         hash.includes("61")
       ) {
-        handleOpenFeedback(initialBriefings[0]);
+        handleOpenFeedback(briefings[0] || initialBriefings[0]);
       }
     }
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
+    await fetchBriefings(activeTab, searchQuery);
+    setIsRefreshing(false);
   };
-
-  const filteredBriefings = initialBriefings.filter((item) => {
-    // 1. Timeframe filter (Daily vs Weekly)
-    const matchesTimeframe =
-      !item.timeframe ||
-      item.timeframe === "both" ||
-      item.timeframe === activeTab;
-
-    if (!matchesTimeframe) return false;
-
-    // 2. Search query filter
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.channelName.toLowerCase().includes(q) ||
-      item.summary.toLowerCase().includes(q)
-    );
-  });
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const userGreetingName = user?.first_name || (user?.full_name ? user.full_name.split(" ")[0] : "Abir");
+
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white flex flex-row overflow-x-hidden font-['Lato',sans-serif]">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-[#0F172A] text-white flex flex-row overflow-x-hidden font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma: Side Panel - width 240px, responsive drawer on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}
@@ -371,7 +411,7 @@ export default function FeedPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight font-['Lato',sans-serif]">
-                Welcome back, Abir! 👋
+                Welcome back, {userGreetingName}! 👋
               </h1>
               <p className="text-sm sm:text-base text-[#D0D0D0] mt-1 font-['Lato',sans-serif]">
                 {activeTab === "daily"
@@ -384,8 +424,8 @@ export default function FeedPage() {
               {/* Desktop - 60 Rate Us Modal Trigger */}
               <button
                 type="button"
-                onClick={() => handleOpenFeedback(initialBriefings[0])}
-                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] hover:brightness-110 active:scale-95 transition-all text-white text-base font-semibold select-none shadow-md shadow-purple-900/30 shrink-0"
+                onClick={() => handleOpenFeedback(briefings[0] || initialBriefings[0])}
+                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] hover:brightness-110 active:scale-95 transition-all text-white text-base font-semibold select-none shadow-md shadow-purple-900/30 shrink-0 cursor-pointer"
               >
                 <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
                 <span>Please Rate Us</span>
@@ -395,7 +435,7 @@ export default function FeedPage() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 border border-white/10 active:scale-95 transition-all text-white text-base font-medium select-none shadow-sm shrink-0 self-start sm:self-auto"
+                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 border border-white/10 active:scale-95 transition-all text-white text-base font-medium select-none shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
               >
                 <RotateCw
                   className={`w-5 h-5 text-white ${
@@ -412,7 +452,7 @@ export default function FeedPage() {
             <button
               type="button"
               onClick={() => setActiveTab("daily")}
-              className={`h-11 px-6 text-lg font-normal transition-all relative select-none ${
+              className={`h-11 px-6 text-lg font-normal transition-all relative select-none cursor-pointer ${
                 activeTab === "daily"
                   ? "text-white font-medium border-b-2 border-white"
                   : "text-[#D0D0D0] hover:text-white border-b-2 border-transparent"
@@ -424,7 +464,7 @@ export default function FeedPage() {
             <button
               type="button"
               onClick={() => setActiveTab("weekly")}
-              className={`h-11 px-6 text-lg font-normal transition-all relative select-none ${
+              className={`h-11 px-6 text-lg font-normal transition-all relative select-none cursor-pointer ${
                 activeTab === "weekly"
                   ? "text-white font-medium border-b-2 border-white"
                   : "text-[#D0D0D0] hover:text-white border-b-2 border-transparent"
@@ -434,22 +474,27 @@ export default function FeedPage() {
             </button>
           </div>
 
-          {/* Video Briefing Cards Grid (Figma Frame 2147239874) */}
-          {filteredBriefings.length === 0 ? (
+          {/* Video Briefing Cards Grid */}
+          {isLoadingBriefings && briefings.length === 0 ? (
+            <div className="py-24 text-center text-[#D0D0D0] flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+              <p className="text-base text-white/80">Loading briefings from server...</p>
+            </div>
+          ) : briefings.length === 0 ? (
             <div className="py-16 text-center text-[#D0D0D0] flex flex-col items-center gap-3">
               <Sparkles className="w-8 h-8 text-purple-400" />
               <p className="text-base">No briefings matched your search.</p>
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="text-sm text-cyan-300 underline underline-offset-4"
+                className="text-sm text-cyan-300 underline underline-offset-4 cursor-pointer"
               >
                 Clear search query
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredBriefings.map((item) => (
+              {briefings.map((item) => (
                 <BriefingCard
                   key={item.id}
                   briefing={item}
@@ -516,5 +561,6 @@ export default function FeedPage() {
         />
       )}
     </div>
+    </ProtectedRoute>
   );
 }

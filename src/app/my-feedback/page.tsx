@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import Footer from "@/components/Footer";
@@ -10,6 +10,9 @@ import FeedbackModal from "@/components/feed/FeedbackModal";
 import ImproveSummaryModal from "@/components/feed/ImproveSummaryModal";
 import ThankYouModal from "@/components/feed/ThankYouModal";
 import { BriefingItem } from "@/components/feed/BriefingCard";
+import { feedbackApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const initialFeedbacks: FeedbackCardData[] = [
   {
@@ -87,7 +90,38 @@ const initialFeedbacks: FeedbackCardData[] = [
 ];
 
 export default function MyFeedbackPage() {
-  const [feedbacks] = useState<FeedbackCardData[]>(initialFeedbacks);
+  const { user } = useAuth();
+  const [feedbacks, setFeedbacks] = useState<FeedbackCardData[]>(initialFeedbacks);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFeedbacks() {
+      try {
+        const res = await feedbackApi.getMyFeedback();
+        if (isMounted && Array.isArray(res) && res.length > 0) {
+          const mapped: FeedbackCardData[] = res.map((fb: any) => ({
+            id: fb.id,
+            title: fb.briefing_title || fb.briefing?.title || "Video Briefing Feedback",
+            thumbnail: fb.briefing_thumbnail || fb.briefing?.thumbnail || "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
+            duration: fb.briefing_duration || "08:00",
+            rating: fb.rating || 5,
+            maxRating: 5,
+            usefulFeedback: fb.useful_feedback || "Helpful",
+            thoughts: fb.thoughts || "",
+            requestOption: fb.request_improved ? "Request an improved version" : "Feedback submitted",
+            channelName: fb.creator_name || "Curio Creator",
+          }));
+          setFeedbacks(mapped);
+        }
+      } catch {
+        // Fallback to initialFeedbacks
+      }
+    }
+    loadFeedbacks();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Audio player modal state
   const [selectedBriefing, setSelectedBriefing] = useState<BriefingItem | null>(null);
@@ -116,7 +150,8 @@ export default function MyFeedbackPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma Desktop - 55 Side Panel: 240px wide, My Feedback active, responsive on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}
@@ -128,7 +163,7 @@ export default function MyFeedbackPage() {
         {/* Top Nav (Figma Desktop - 55 Nav: 80px height) */}
         <FeedNavbar
           showSearch={false}
-          userSubtitle="abir07@gmai.com"
+          userSubtitle={user?.email || "abir07@gmai.com"}
           onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
         />
 
@@ -207,5 +242,6 @@ export default function MyFeedbackPage() {
         />
       )}
     </div>
+    </ProtectedRoute>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { Download, Check, Play, Bookmark } from "lucide-react";
+import { libraryApi } from "@/lib/api";
 
 export interface ChannelVideoItem {
   id: string;
@@ -15,6 +16,7 @@ export interface ChannelVideoItem {
   summary: string;
   fullSummary?: string;
   keyTakeaways?: string[];
+  isSaved?: boolean;
 }
 
 interface ChannelVideoCardProps {
@@ -24,9 +26,14 @@ interface ChannelVideoCardProps {
 
 export default function ChannelVideoCard({ video, onPlayAudio }: ChannelVideoCardProps) {
   const [downloaded, setDownloaded] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(video.isSaved ?? false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setIsSaved(video.isSaved ?? false);
+  }, [video.isSaved, video.id]);
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -34,9 +41,29 @@ export default function ChannelVideoCard({ video, onPlayAudio }: ChannelVideoCar
     setTimeout(() => setDownloaded(false), 2500);
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsSaved(!isSaved);
+    if (isSaving) return;
+    setIsSaving(true);
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    // Ensure video.id is a valid UUID before hitting Django backend
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(video.id);
+    if (!isUuid) {
+      console.warn(`[ChannelVideoCard] Skipping toggleSave API call: "${video.id}" is not a valid UUID.`);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      await libraryApi.toggleSave(video.id);
+    } catch (err) {
+      console.error("Failed to toggle save in ChannelVideoCard:", err);
+      setIsSaved(!nextSaved);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

@@ -29,6 +29,7 @@ import {
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
 import { motion, AnimatePresence } from "framer-motion";
+import { adminApi } from "@/lib/api";
 
 // Custom SVG Icons matching exact Figma vectors
 function DashboardGridIcon({ className = "text-white" }: { className?: string }) {
@@ -226,6 +227,15 @@ export default function AdminDashboardPage() {
   const [pageSize, setPageSize] = useState(10);
   const [adminUser, setAdminUser] = useState({ name: "Abir Hossain", role: "Admin", email: "admin@curio.ai" });
 
+  const [metrics, setMetrics] = useState({
+    totalUsers: "12,802",
+    totalRevenue: "23,028",
+    totalVideoProcessed: "22,000",
+    totalAiSummary: "10,000",
+  });
+  const [activitiesList, setActivitiesList] = useState<ActivityItem[]>(initialActivities);
+  const [liveRevenueStats, setLiveRevenueStats] = useState<any[] | null>(null);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("curio_admin_user");
@@ -233,24 +243,79 @@ export default function AdminDashboardPage() {
         try {
           const parsed = JSON.parse(stored);
           if (parsed.email) {
-            setAdminUser((prev) => ({ ...prev, email: parsed.email }));
+            setAdminUser((prev) => ({
+              ...prev,
+              name: parsed.full_name || prev.name,
+              email: parsed.email,
+            }));
           }
         } catch {
           // fallback
         }
       }
     }
+
+    let isMounted = true;
+    async function loadDashboard() {
+      try {
+        const data = await adminApi.getAnalyticsDashboard();
+        if (isMounted && data) {
+          if (data.metrics) {
+            setMetrics({
+              totalUsers: Number(data.metrics.total_users || 0).toLocaleString(),
+              totalRevenue: Number(data.metrics.total_revenue || 0).toLocaleString(),
+              totalVideoProcessed: Number(data.metrics.total_video_processed || 0).toLocaleString(),
+              totalAiSummary: Number(data.metrics.total_ai_summary || 0).toLocaleString(),
+            });
+          }
+          if (Array.isArray(data.revenue_stats) && data.revenue_stats.length > 0) {
+            setLiveRevenueStats(data.revenue_stats);
+          }
+          if (Array.isArray(data.recent_activities) && data.recent_activities.length > 0) {
+            const colors = [
+              "from-blue-500 to-indigo-600",
+              "from-purple-500 to-pink-600",
+              "from-cyan-500 to-blue-600",
+              "from-amber-500 to-orange-600",
+              "from-emerald-500 to-teal-600",
+              "from-fuchsia-500 to-purple-600",
+            ];
+            const mappedActivities: ActivityItem[] = data.recent_activities.map((act: any, idx: number) => ({
+              id: act.id || `ACT-${idx + 1}`,
+              name: act.name || "Curio Member",
+              email: act.email || "",
+              plan: (act.plan === "Pro" ? "Pro" : act.plan === "Enterprise" ? "Enterprise" : "Free") as "Free" | "Pro" | "Enterprise",
+              type: act.activity_type || "Active Member",
+              description: act.description || "",
+              rating: act.rating || undefined,
+              dateTime: act.date_time || "Recent",
+              avatarColor: colors[idx % colors.length],
+            }));
+            setActivitiesList(mappedActivities);
+          }
+        }
+      } catch (err) {
+        // Fallback to static mock data
+      }
+    }
+    loadDashboard();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };
 
   // Filter activities based on search query and selected plan filter
-  const filteredActivities = initialActivities.filter((act) => {
+  const filteredActivities = activitiesList.filter((act) => {
     const matchesSearch =
       act.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       act.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -617,7 +682,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">12,802</span>
+                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalUsers}</span>
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardUsersIcon className="w-6 h-6 text-white" />
                   </div>
@@ -625,7 +690,7 @@ export default function AdminDashboardPage() {
                 <span className="text-base font-medium text-white">Total Users</span>
               </div>
 
-              {/* Card 2: Total Revenue (Amount 23,028) */}
+              {/* Card 2: Total Revenue */}
               <div
                 className="p-5 rounded-xl border border-white/10 flex flex-col justify-between h-[142px] shadow-[6px_6px_54px_rgba(0,0,0,0.05)] transition-all hover:border-white/30"
                 style={{
@@ -633,7 +698,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">23,028</span>
+                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">${metrics.totalRevenue}</span>
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardRevenueIcon className="w-6 h-6 text-white" />
                   </div>
@@ -641,7 +706,7 @@ export default function AdminDashboardPage() {
                 <span className="text-base font-medium text-white">Total Revenue</span>
               </div>
 
-              {/* Card 3: Total Video Processed (Amount 22,000) */}
+              {/* Card 3: Total Video Processed */}
               <div
                 className="p-5 rounded-xl border border-white/10 flex flex-col justify-between h-[142px] shadow-[6px_6px_54px_rgba(0,0,0,0.05)] transition-all hover:border-white/30"
                 style={{
@@ -649,7 +714,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">22,000</span>
+                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalVideoProcessed}</span>
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardVideoIcon className="w-6 h-6 text-white" />
                   </div>
@@ -657,7 +722,7 @@ export default function AdminDashboardPage() {
                 <span className="text-base font-medium text-white">Total Video Processed</span>
               </div>
 
-              {/* Card 4: Total AI Summary (Amount 10,000) */}
+              {/* Card 4: Total AI Summary */}
               <div
                 className="p-5 rounded-xl border border-white/10 flex flex-col justify-between h-[142px] shadow-[6px_6px_54px_rgba(0,0,0,0.05)] transition-all hover:border-white/30"
                 style={{
@@ -665,7 +730,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">10,000</span>
+                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalAiSummary}</span>
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardAiSummaryIcon className="w-6 h-6 text-white" />
                   </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { BriefingItem } from "./BriefingCard";
 import { Check } from "lucide-react";
+import { libraryApi } from "@/lib/api";
 
 interface AudioPlayerModalProps {
   briefing: BriefingItem;
@@ -19,8 +20,36 @@ export default function AudioPlayerModal({
   const [isPlaying, setIsPlaying] = useState(true);
   const [progressPercent, setProgressPercent] = useState(28); // ~02:25 of 08:25
   const [isDownloaded, setIsDownloaded] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentTimeStr, setCurrentTimeStr] = useState("02:25");
+
+  useEffect(() => {
+    setIsSaved(briefing.isSaved ?? false);
+  }, [briefing.isSaved, briefing.id]);
+
+  const handleToggleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(briefing.id);
+    if (!isUuid) {
+      console.warn(`[AudioPlayerModal] Skipping toggleSave API call: "${briefing.id}" is not a valid UUID.`);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      await libraryApi.toggleSave(briefing.id);
+    } catch (err) {
+      console.error("Failed to toggle save in AudioPlayerModal:", err);
+      setIsSaved(!nextSaved);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Simulate audio playback progress
   useEffect(() => {
@@ -255,7 +284,7 @@ export default function AudioPlayerModal({
               {/* Bookmark Button */}
               <button
                 type="button"
-                onClick={() => setIsSaved(!isSaved)}
+                onClick={handleToggleSave}
                 title={isSaved ? "Saved to Library" : "Save to Library"}
                 className={`w-[44px] h-[44px] rounded-lg flex items-center justify-center transition-all select-none shrink-0 cursor-pointer ${
                   isSaved

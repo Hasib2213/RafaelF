@@ -1,21 +1,71 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import Footer from "@/components/Footer";
-import { Mail, CheckCircle2, Send, Phone, MapPin } from "lucide-react";
+import { Mail, CheckCircle2, Send, Phone, MapPin, AlertCircle } from "lucide-react";
+import { settingsApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ContactUsPage() {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
+    name: user?.full_name || "",
+    email: user?.email || "",
     subject: "",
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const [contactSettings, setContactSettings] = useState({
+    email: "info@curio.com",
+    mobile: "+8801688148194",
+    address: "Dhaka, Bangladesh",
+    facebook: "https://facebook.com",
+    x_profile: "https://x.com",
+    instagram: "https://instagram.com",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || user.full_name || `${user.first_name} ${user.last_name}`.trim(),
+        email: prev.email || user.email || "",
+      }));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSettings() {
+      try {
+        const s = await settingsApi.getSettings();
+        if (isMounted && s) {
+          setContactSettings({
+            email: s.email || "info@curio.com",
+            mobile: s.mobile || "+8801688148194",
+            address: s.address || "Dhaka, Bangladesh",
+            facebook: s.facebook ? (s.facebook.startsWith("http") ? s.facebook : `https://facebook.com/${s.facebook}`) : "https://facebook.com",
+            x_profile: s.x_profile ? (s.x_profile.startsWith("http") ? s.x_profile : `https://x.com/${s.x_profile.replace("@", "")}`) : "https://x.com",
+            instagram: s.instagram ? (s.instagram.startsWith("http") ? s.instagram : `https://instagram.com/${s.instagram.replace("@", "")}`) : "https://instagram.com",
+          });
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    loadSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -24,42 +74,51 @@ export default function ContactUsPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage(null);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await settingsApi.sendContactMessage({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        subject: formData.subject.trim(),
+        message: formData.message.trim(),
+      });
       setIsSuccess(true);
       setFormData({
-        name: "",
-        email: "",
+        name: user?.full_name || "",
+        email: user?.email || "",
         subject: "",
         message: "",
       });
-    }, 800);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to send message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  return (
-    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
-      {/* Left Sidebar (Figma: Side Panel - 240px x 806px) */}
-      <FeedSidebar />
-
-      {/* Center Layout Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#0F172A]">
-        {/* Top Navbar (Figma: Nav - height 80px, userSubtitle='abir07@gmai.com') */}
-        <FeedNavbar showSearch={false} userSubtitle="abir07@gmai.com" />
-
-        {/* Main Canvas Area (Figma Desktop - 10: Frame 2147227640 / Frame 2147227653) */}
-        <main className="flex-1 w-full max-w-[1152px] mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col gap-10">
-          {/* Contact Card Container (Figma Frame 2147227653: 1152px x 546px) */}
-          <div className="w-full rounded-2xl p-6 sm:p-9 border border-white/20 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] bg-[#2B2A7D] [background-image:linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col gap-6">
+  const contactCard = (
+    <div className="w-full rounded-2xl p-6 sm:p-9 border border-white/20 shadow-[0px_1px_12px_rgba(0,0,0,0.05)] bg-[#2B2A7D] [background-image:linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col gap-6">
             {/* Header: "Contact Us" (Figma Frame 2147227774 / Frame 2147239908) */}
             <div className="w-full border-b border-white/10 pb-4">
               <h1 className="text-white text-2xl sm:text-[28px] font-semibold font-['Lato',sans-serif] leading-[135%] tracking-[-0.02em]">
                 Contact Us
               </h1>
             </div>
+
+            {/* Error Notification */}
+            {errorMessage && (
+              <div className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 flex items-center gap-3 animate-fade-in">
+                <AlertCircle className="w-6 h-6 text-rose-400 shrink-0" />
+                <div>
+                  <p className="font-semibold text-white">Error Sending Message</p>
+                  <p className="text-xs text-rose-200/90">{errorMessage}</p>
+                </div>
+              </div>
+            )}
 
             {/* Split Row: Left Info & Right Form (Figma Frame 2147239921) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
@@ -86,10 +145,10 @@ export default function ContactUsPage() {
                         <Mail className="w-5 h-5" />
                       </div>
                       <a
-                        href="mailto:info@curio.com"
+                        href={`mailto:${contactSettings.email}`}
                         className="text-white hover:text-cyan-300 transition-colors text-base font-medium font-['Lato',sans-serif]"
                       >
-                        info@curio.com
+                        {contactSettings.email}
                       </a>
                     </div>
 
@@ -98,10 +157,10 @@ export default function ContactUsPage() {
                         <Phone className="w-5 h-5" />
                       </div>
                       <a
-                        href="tel:+8899036154"
+                        href={`tel:${contactSettings.mobile}`}
                         className="text-white hover:text-cyan-300 transition-colors text-base font-medium font-['Lato',sans-serif]"
                       >
-                        Whatsapp: +8899036154
+                        {contactSettings.mobile}
                       </a>
                     </div>
 
@@ -110,7 +169,7 @@ export default function ContactUsPage() {
                         <MapPin className="w-5 h-5" />
                       </div>
                       <span className="text-[#D0D0D0] text-base font-normal font-['Lato',sans-serif]">
-                        Dhaka, Bangladesh
+                        {contactSettings.address}
                       </span>
                     </div>
                   </div>
@@ -120,7 +179,7 @@ export default function ContactUsPage() {
                 <div className="flex items-center gap-4 pt-4">
                   {/* Facebook */}
                   <a
-                    href="https://facebook.com"
+                    href={contactSettings.facebook}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Curio on Facebook"
@@ -133,7 +192,7 @@ export default function ContactUsPage() {
 
                   {/* X / Twitter */}
                   <a
-                    href="https://x.com"
+                    href={contactSettings.x_profile}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Curio on X"
@@ -146,7 +205,7 @@ export default function ContactUsPage() {
 
                   {/* Instagram */}
                   <a
-                    href="https://instagram.com"
+                    href={contactSettings.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Curio on Instagram"
@@ -294,7 +353,56 @@ export default function ContactUsPage() {
               </div>
             </div>
           </div>
+  );
 
+  // If user is not logged in (e.g. clicked Contact Us from landing page footer):
+  // Render with public Navbar and Footer, without the internal feed sidebar
+  if (!isAuthenticated) {
+    return (
+      <div className="relative min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif] flex flex-col justify-between overflow-hidden">
+        {/* Figma Ambient Glow Orbs */}
+        <div
+          className="absolute -left-64 -top-64 w-[592px] h-[693px] rounded-full bg-[#CB52FF]/20 blur-[180px] pointer-events-none z-0"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -right-48 top-[600px] w-[528px] h-[618px] rounded-full bg-[#3E8AFB]/15 blur-[180px] pointer-events-none z-0"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 flex flex-col flex-1 justify-between min-h-screen">
+          <Navbar />
+          <main className="flex-1 w-full max-w-[1152px] mx-auto px-4 sm:px-6 py-10 sm:py-14 flex flex-col gap-10">
+            {contactCard}
+          </main>
+          <Footer />
+        </div>
+      </div>
+    );
+  }
+
+  // Authenticated user (logged in, navigating from within app):
+  // Render with FeedSidebar and FeedNavbar
+  return (
+    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
+      {/* Left Sidebar (Figma: Side Panel - 240px x 806px) */}
+      <FeedSidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
+
+      {/* Center Layout Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#0F172A]">
+        {/* Top Navbar */}
+        <FeedNavbar
+          showSearch={false}
+          userSubtitle={user?.email || ""}
+          onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)}
+        />
+
+        {/* Main Canvas Area */}
+        <main className="flex-1 w-full max-w-[1152px] mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col gap-10">
+          {contactCard}
         </main>
 
         {/* Standard Footer matching all other pages */}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Lato, Manrope } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 const lato = Lato({
   variable: "--font-lato",
@@ -38,8 +39,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${lato.variable} ${manrope.variable} dark scroll-smooth`}>
       <body className="min-h-screen bg-[#0F172A] text-white font-sans antialiased selection:bg-[#7A3BED] selection:text-white overflow-x-hidden">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
 }
+

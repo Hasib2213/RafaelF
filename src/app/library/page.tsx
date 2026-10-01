@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import LibraryCard, { LibraryItem } from "@/components/library/LibraryCard";
@@ -10,6 +11,7 @@ import ImproveSummaryModal from "@/components/feed/ImproveSummaryModal";
 import ThankYouModal from "@/components/feed/ThankYouModal";
 import { BriefingItem } from "@/components/feed/BriefingCard";
 import Footer from "@/components/Footer";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import {
   SlidersHorizontal,
   ChevronDown,
@@ -23,227 +25,29 @@ import {
 
 type LibraryFilter = "recently" | "oldest" | "a-z" | "z-a";
 
-const initialLibraryItems: LibraryItem[] = [
-  {
-    id: "lib-1",
-    title: "YOU OWE IT TO YOU IN 2026 - Best Motivational Speech | Matthew McConaughey",
-    duration: "08:25",
-    thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80",
-    channelName: "Motiversity",
-    subscribers: "4.11M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-    summary: "This motivational speech emphasizes taking full responsibility for your life and future. Stop waiting for the right moment and act today....Read more",
-    fullSummary: "Matthew McConaughey deconstructs the paradox of modern achievement. The speech urges individuals to eliminate distractions, define internal success benchmarks rather than peer validation, and understand that consistent daily commitments compound into undeniable long-term destiny.",
-    keyTakeaways: [
-      "Prioritize proactive self-discipline over temporary reactive motivation.",
-      "The compound effect of small daily habits creates massive multi-year breakthroughs.",
-      "Self-mastery and radical personal honesty precede external achievement.",
-    ],
-    savedAt: "2026-09-10T10:00:00Z",
-    category: "Motivation",
-  },
-  {
-    id: "lib-2",
-    title: "The Architecture of Large Language Models: From Attention to AGI",
-    duration: "18:45",
-    thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
-    channelName: "Tech Insights",
-    subscribers: "2.4M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-    summary: "Deep architectural breakdown of modern transformer inference, reasoning tokens, and test-time compute scaling....Read more",
-    fullSummary: "Examines how scaling compute at inference time is transforming traditional LLMs into autonomous problem-solving engines capable of recursive self-correction.",
-    keyTakeaways: [
-      "Inference-time search scales reasoning beyond static weight memorization.",
-      "Transformer attention mechanisms allow unbounded associative context recall.",
-      "Verifiable reward models provide stable training signals for rigorous logic.",
-    ],
-    savedAt: "2026-09-09T14:30:00Z",
-    category: "Technology",
-  },
-  {
-    id: "lib-3",
-    title: "Master Focus: 5 Science-Backed Protocols from Neuroscience",
-    duration: "14:15",
-    thumbnail: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
-    channelName: "Huberman Lab",
-    subscribers: "5.2M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    summary: "Proven neurobiological protocols to eliminate brain fog, optimize dopamine levels, and achieve deep cognitive flow states....Read more",
-    fullSummary: "Dr. Andrew Huberman explains how visual focus anchors mental focus. Learn how 90-minute ultradian cycles, acoustic stimulation, and morning photic signaling boost baseline focus.",
-    keyTakeaways: [
-      "Visual fixation drives mental fixation: narrow your sight to narrow attention.",
-      "Work in 90-minute ultradian blocks aligned with physiological cycles.",
-      "Delay early caffeine intake by 90 minutes to prevent the afternoon adenosine crash.",
-    ],
-    savedAt: "2026-09-08T09:15:00Z",
-    category: "Health",
-  },
-  {
-    id: "lib-4",
-    title: "Artificial Superintelligence, Quantum Computing & Robotics",
-    duration: "21:30",
-    thumbnail: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80",
-    channelName: "Lex Fridman",
-    subscribers: "4.1M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    summary: "Deep conversations on the horizon of AGI, synthetic biological cognition, and the next leap in computing substrates....Read more",
-    fullSummary: "An in-depth exploration of human consciousness, algorithmic alignment, and whether artificial intelligence will collaborate or compete with human civilization.",
-    keyTakeaways: [
-      "Alignment requires understanding internal model representations, not just output tokens.",
-      "Embodied humanoid robots provide grounding that purely textual models lack.",
-      "Open-weights research accelerates global resilience against monopolized AI.",
-    ],
-    savedAt: "2026-09-07T18:00:00Z",
-    category: "AI",
-  },
-  {
-    id: "lib-5",
-    title: "The 7 Productivity Principles That Changed My Life & Career",
-    duration: "11:50",
-    thumbnail: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80",
-    channelName: "Ali Abdaal",
-    subscribers: "5.5M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
-    summary: "How to build sustainable output without burnout: the power of feel-good productivity, energy management, and play....Read more",
-    fullSummary: "Ali breaks down the counter-intuitive physics of productivity: joy drives discipline, friction kills momentum, and clarity prevents decision fatigue.",
-    keyTakeaways: [
-      "Optimize for energizing activities rather than pure mechanical time management.",
-      "The 5-minute rule overcomes the activation energy needed to begin tough tasks.",
-      "Systemize routine operations to preserve executive focus for creative breakthroughs.",
-    ],
-    savedAt: "2026-09-06T11:45:00Z",
-    category: "Productivity",
-  },
-  {
-    id: "lib-6",
-    title: "Why Black Holes Could Break Fundamental Quantum Physics",
-    duration: "16:20",
-    thumbnail: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop&q=80",
-    channelName: "Veritasium",
-    subscribers: "15.6M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
-    summary: "The information paradox, Hawking radiation, and why gravity refuses to fit neatly into the standard model of particle physics....Read more",
-    fullSummary: "Examines the theoretical clash between general relativity and quantum mechanics at the event horizon of supermassive black holes.",
-    keyTakeaways: [
-      "Hawking radiation implies black holes slowly evaporate over cosmic timescales.",
-      "The information paradox questions whether quantum states are preserved or lost forever.",
-      "Holographic duality hints that 3D gravity might emerge from a 2D boundary quantum theory.",
-    ],
-    savedAt: "2026-09-05T16:10:00Z",
-    category: "Science",
-  },
-  {
-    id: "lib-7",
-    title: "Can't Hurt Me: Master Your Mind and Defy the Odds | David Goggins",
-    duration: "15:20",
-    thumbnail: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80",
-    channelName: "Impact Theory",
-    subscribers: "4.48M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
-    summary: "Break through the 40% rule: when your mind says you are exhausted, you are only tapping into a fraction of your real ceiling....Read more",
-    fullSummary: "David Goggins shares his philosophy on callusing the mind. Building unstoppable grit requires intentional discomfort and confronting internal doubts head-on.",
-    keyTakeaways: [
-      "The 40% rule: mental friction kicks in long before biological exhaustion occurs.",
-      "Accountability mirrors: radical self-honesty accelerates transformation.",
-      "Turn perceived suffering into competitive fuel for relentless resilience.",
-    ],
-    savedAt: "2026-09-04T12:00:00Z",
-    category: "Mindset",
-  },
-  {
-    id: "lib-8",
-    title: "Start With Why: How Great Leaders Inspire Everyone to Take Action",
-    duration: "12:45",
-    thumbnail: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
-    channelName: "TED Talks",
-    subscribers: "24.1M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    summary: "Discover the Golden Circle framework: people don't buy what you do; they buy why you do it. Transforming products into movements....Read more",
-    fullSummary: "A timeless dissection of visionary communication. Leaders who inspire loyalty communicate from the inside out: starting with core conviction ('Why') before detailing methodology ('How') or product specifications ('What').",
-    keyTakeaways: [
-      "Clarify your purpose before executing tactical features.",
-      "True leadership is based on inspiring voluntary commitment rather than coercion.",
-      "Authenticity in brand messaging creates resilient user loyalty.",
-    ],
-    savedAt: "2026-09-03T15:20:00Z",
-    category: "Leadership",
-  },
-  {
-    id: "lib-9",
-    title: "Mastering Spatial Computing, Neural Interfaces & Next-Gen Hardware",
-    duration: "13:40",
-    thumbnail: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=600&auto=format&fit=crop&q=80",
-    channelName: "Tech Insights",
-    subscribers: "2.4M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-    summary: "Exploring ultra-low latency spatial chips, mixed-reality waveguides, and the imminent rise of ambient computing interfaces....Read more",
-    fullSummary: "An analytical breakdown of hardware miniaturization, optical waveguides, and neural interfaces bridging physical and digital worlds.",
-    keyTakeaways: [
-      "Micro-OLED display density has crossed human visual acuity limits.",
-      "Neural wristbands detect motor neuron impulses before physical fingers move.",
-      "Ambient computing replaces screens with contextual environmental interfaces.",
-    ],
-    savedAt: "2026-09-02T19:30:00Z",
-    category: "Technology",
-  },
-  {
-    id: "lib-10",
-    title: "Discipline Equals Freedom: The Mindset of Elite Navy SEALs",
-    duration: "17:10",
-    thumbnail: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80",
-    channelName: "Motiversity",
-    subscribers: "4.11M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-    summary: "Why freedom is not the absence of discipline, but the direct byproduct of relentless daily structure and accountability....Read more",
-    fullSummary: "A masterclass on mental resilience. Discover how taking extreme ownership over every detail of your routine unlocks creative and financial autonomy.",
-    keyTakeaways: [
-      "Discipline provides the structure that makes genuine freedom possible.",
-      "Overcome procrastination by taking immediate action on the smallest visible step.",
-      "Extreme ownership eliminates external excuses and returns control to you.",
-    ],
-    savedAt: "2026-09-01T08:15:00Z",
-    category: "Motivation",
-  },
-  {
-    id: "lib-11",
-    title: "Optimize Your Sleep Architecture: Temperature, Light & Supplements",
-    duration: "19:05",
-    thumbnail: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=600&auto=format&fit=crop&q=80",
-    channelName: "Huberman Lab",
-    subscribers: "5.2M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    summary: "The definitive guide to restoring slow-wave delta sleep, REM recovery cycles, and nighttime temperature regulation....Read more",
-    fullSummary: "Dr. Andrew Huberman explains how circadian zeitgebers influence melatonin release, core body cooling, and cellular brain detoxification.",
-    keyTakeaways: [
-      "Cool your bedroom environment to 65-68°F to facilitate natural core cooling.",
-      "Avoid bright overhead fluorescent light after 9 PM to protect melatonin.",
-      "Morning sunlight viewing within 30 minutes of waking anchors your 24-hour circadian rhythm.",
-    ],
-    savedAt: "2026-08-31T21:40:00Z",
-    category: "Health",
-  },
-  {
-    id: "lib-12",
-    title: "Autonomous AI Agents in 2026: The Future of Digital Coworkers",
-    duration: "10:55",
-    thumbnail: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&auto=format&fit=crop&q=80",
-    channelName: "Lex Fridman",
-    subscribers: "4.1M subscribers",
-    channelAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    summary: "Autonomous multi-agent orchestration, tool use, long-horizon planning, and how software development is being reinvented....Read more",
-    fullSummary: "Evaluates the transition from conversational chatbots to agentic workflows that autonomously debug, deploy, and monitor enterprise systems.",
-    keyTakeaways: [
-      "Agent swarms outcompete single monolithic models on complex benchmarks.",
-      "Persistent memory architecture enables continuous learning across tasks.",
-      "Human supervision shifts from line-by-line coding to high-level intent orchestration.",
-    ],
-    savedAt: "2026-08-30T13:25:00Z",
-    category: "AI",
-  },
-];
+import { libraryApi } from "@/lib/api";
+
+function mapBackendLibraryItem(item: any): LibraryItem {
+  const b = item.briefing || item;
+  return {
+    id: item.id || b.id, // item.id is the SavedItem UUID
+    title: b.title || "Untitled Briefing",
+    duration: b.duration || "10:00",
+    thumbnail: b.thumbnail_url || "/images/summary.png",
+    channelName: b.channel_name || "Creator",
+    subscribers: b.subscribers || "1M subscribers",
+    channelAvatar: b.channel_avatar_url || "/images/creators.png",
+    summary: b.summary || "",
+    fullSummary: b.full_summary || "",
+    keyTakeaways: b.key_takeaways || [],
+    savedAt: item.saved_at || item.created_at || b.created_at || new Date().toISOString(),
+    category: b.category || "General",
+  };
+}
 
 export default function LibraryPage() {
-  const [items, setItems] = useState<LibraryItem[]>(initialLibraryItems);
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [removedItem, setRemovedItem] = useState<{ item: LibraryItem; index: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activePage, setActivePage] = useState(1);
@@ -260,6 +64,33 @@ export default function LibraryPage() {
   const [activeImproveBriefing, setActiveImproveBriefing] = useState<BriefingItem | null>(null);
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLibrary = async () => {
+      setIsLoading(true);
+      try {
+        const res = await libraryApi.list({
+          sort: filterActive,
+          search: searchQuery.trim() || undefined,
+        });
+        const list = Array.isArray(res) ? res : res?.results || [];
+        if (isMounted) {
+          setItems(list.map(mapBackendLibraryItem));
+        }
+      } catch (err) {
+        console.error("Failed to fetch library items:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    fetchLibrary();
+    return () => {
+      isMounted = false;
+    };
+  }, [filterActive, searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -293,13 +124,18 @@ export default function LibraryPage() {
     setSelectedBriefing(briefing);
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
     const idx = items.findIndex((i) => i.id === id);
     if (idx !== -1) {
       const removed = items[idx];
       setRemovedItem({ item: removed, index: idx });
       setItems((prev) => prev.filter((i) => i.id !== id));
       showToast(`Removed "${removed.title.slice(0, 35)}..." from Library.`);
+      try {
+        await libraryApi.remove(id);
+      } catch (err) {
+        console.error("Failed to delete item from backend:", err);
+      }
     }
   };
 
@@ -383,7 +219,8 @@ export default function LibraryPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-[#0F172A] text-white font-['Lato',sans-serif]">
       {/* Left Sidebar (Figma Side Panel: 240px x 806px, responsive drawer on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}
@@ -520,7 +357,12 @@ export default function LibraryPage() {
           </section>
 
           {/* Saved Cards Grid (Figma Frame 2147239874: 1152px, 3 columns x 4 rows) */}
-          {displayedItems.length > 0 ? (
+          {isLoading ? (
+            <div className="w-full py-24 flex flex-col items-center justify-center gap-3">
+              <div className="w-10 h-10 border-4 border-[#36C1FB] border-t-transparent rounded-full animate-spin" />
+              <p className="text-white/70 text-sm font-['Lato',sans-serif]">Loading your saved briefings...</p>
+            </div>
+          ) : displayedItems.length > 0 ? (
             <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {displayedItems.map((item) => (
                 <LibraryCard
@@ -532,18 +374,26 @@ export default function LibraryPage() {
               ))}
             </section>
           ) : (
-            <div className="w-full py-20 rounded-2xl border border-white/10 [background:linear-gradient(0deg,#2B2A7D,#2B2A7D),linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col items-center justify-center gap-3 text-center px-4">
+            <div className="w-full py-20 rounded-2xl border border-white/10 [background:linear-gradient(0deg,#2B2A7D,#2B2A7D),linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col items-center justify-center gap-4 text-center px-4">
               <h3 className="text-xl font-semibold text-white">No saved briefings found</h3>
               <p className="text-sm text-[#D0D0D0] max-w-md">
                 {searchQuery
                   ? `No briefings match "${searchQuery}". Try a different keyword.`
-                  : "You have not saved any audio briefings yet. Bookmark briefings from your Feed to view them here."}
+                  : "Your library is currently empty. Bookmark briefings from your Feed to listen to them here anytime."}
               </p>
+              {!searchQuery && (
+                <Link
+                  href="/feed"
+                  className="mt-1 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#7A3BED] text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-purple-900/40"
+                >
+                  Explore Feed
+                </Link>
+              )}
               {removedItem && (
                 <button
                   type="button"
                   onClick={handleUndoRemove}
-                  className="mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] text-white font-medium text-sm flex items-center gap-2 hover:brightness-110 cursor-pointer"
+                  className="mt-2 px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium text-sm flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>Restore Last Removed Item</span>
@@ -723,5 +573,6 @@ export default function LibraryPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

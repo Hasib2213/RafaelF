@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import { adminApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -186,22 +187,60 @@ export default function UserManagementPage() {
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberPlan, setNewMemberPlan] = useState<PlanType>("Pro Member");
   const [extraRows, setExtraRows] = useState<UserActivityRow[]>([]);
+  const [apiUsers, setApiUsers] = useState<UserActivityRow[] | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUsers() {
+      try {
+        const res = await adminApi.getUsers();
+        if (isMounted && res) {
+          const list = Array.isArray(res) ? res : res.results || [];
+          if (list.length > 0) {
+            const mapped: UserActivityRow[] = list.map((u: any) => ({
+              id: u.id,
+              dateTime: u.date_joined ? new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
+              userType: (u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member") as PlanType,
+              name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+              activityTitle: u.is_suspended ? "Suspended" : "Active Member",
+              activityDesc: u.is_suspended ? (u.suspension_reason || "Account suspended") : `Joined as ${u.plan || "Free"} member`,
+              email: u.email,
+            }));
+            setApiUsers(mapped);
+          }
+        }
+      } catch {
+        // Fallback to static mock data
+      }
+    }
+    loadUsers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("curio_admin_user");
+      localStorage.removeItem("curio_access_token");
+      localStorage.removeItem("curio_refresh_token");
+      localStorage.removeItem("curio_user");
       window.location.href = "/admin/login";
     }
   };
 
   const baseRows = useMemo<UserActivityRow[]>(() => {
+    if (apiUsers && apiUsers.length > 0) {
+      const filtered = apiUsers.filter((u) => u.userType === selectedPlanTab);
+      if (filtered.length > 0) return filtered;
+    }
     const map: Record<PlanType, UserActivityRow[]> = {
       "Free Member": FREE_MEMBERS,
       "Pro Member": PRO_MEMBERS,
       "Enterprise Member": ENTERPRISE_MEMBERS,
     };
     return map[selectedPlanTab];
-  }, [selectedPlanTab]);
+  }, [selectedPlanTab, apiUsers]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -515,7 +554,7 @@ export default function UserManagementPage() {
                           </div>
                           <div className="flex items-center justify-center">
                             <Link
-                              href={`/admin/dashboard/user-details?name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}`}
+                              href={`/admin/dashboard/user-details?id=${encodeURIComponent(row.id)}&name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}`}
                               title={`View ${row.name}'s Profile`}
                               className="w-8 h-8 rounded-[2px] flex items-center justify-center text-[#B5C8DB] hover:text-white hover:bg-white/20 transition-all cursor-pointer active:scale-95"
                             >
