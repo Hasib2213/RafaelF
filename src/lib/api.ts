@@ -360,6 +360,7 @@ export const briefingsApi = {
     timeframe?: string;
     search?: string;
     category?: string;
+    creator_id?: string;
     page?: number;
   }): Promise<PaginatedResponse<Briefing>> => {
     const query = new URLSearchParams();
@@ -371,6 +372,9 @@ export const briefingsApi = {
     }
     if (params?.category) {
       query.set("category", params.category);
+    }
+    if (params?.creator_id) {
+      query.set("creator_id", params.creator_id);
     }
     if (params?.page) {
       query.set("page", params.page.toString());

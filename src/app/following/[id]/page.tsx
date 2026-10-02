@@ -208,50 +208,71 @@ export default function ChannelDetailPage({
       try {
         const querySlug = resolvedParams.id.replace("@", "").toLowerCase();
 
-        // 1. Try fetching creator info
+        // 1. Fetch real creator info from backend
+        let creatorData: any = null;
         try {
           const c = await creatorsApi.getDetail(resolvedParams.id);
-          if (c && isMounted) {
-            setChannel({
-              name: c.name,
-              handle: c.handle,
-              avatar: c.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80",
-              videoCount: `${c.video_count || 24} Videos`,
-              subscriberCount: c.subscriber_count || "2.4M subscribers",
-              description: c.description || "",
-              isFollowing: c.is_following ?? true,
-            });
+          if (c) {
+            creatorData = c;
+            if (isMounted) {
+              const rawVideoCount = c.video_count !== undefined && c.video_count !== null ? c.video_count : 10;
+              const videoCountStr = String(rawVideoCount).toLowerCase().includes("video")
+                ? String(rawVideoCount)
+                : `${rawVideoCount} Videos`;
+
+              setChannel({
+                id: String(c.id),
+                name: c.name,
+                handle: c.handle,
+                avatar: c.avatar_url || (c as any).avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80",
+                videoCount: videoCountStr,
+                subscriberCount: c.subscriber_count || "2.4M subscribers",
+                description: c.description || "",
+                isFollowing: c.is_following ?? true,
+              });
+            }
           }
-        } catch {
-          // Keep current fallback channel
+        } catch (err) {
+          console.error("Failed to fetch creator detail:", err);
         }
 
         // 2. Fetch real briefings matching channel from backend
-        const res = await briefingsApi.list();
-        const allBriefings = Array.isArray(res) ? res : res.results || [];
+        const creatorIdParam = creatorData?.id || resolvedParams.id;
+        let matchedBriefings: any[] = [];
+        try {
+          const res = await briefingsApi.list({ creator_id: creatorIdParam });
+          matchedBriefings = Array.isArray(res) ? res : res.results || [];
+        } catch (err) {
+          console.error("Failed to load creator briefings with creator_id param:", err);
+        }
 
-        const matched = allBriefings.filter((b: any) => {
-          const chName = (b.channel_name || "").toLowerCase().replace(/\s+/g, "");
-          const chHandle = (b.channel_handle || "").toLowerCase().replace(/[@\s]/g, "");
-          return (
-            chName.includes(querySlug) ||
-            chHandle.includes(querySlug) ||
-            b.creator_id === resolvedParams.id
-          );
-        });
+        // Fallback matching if creator_id query yielded nothing
+        if (matchedBriefings.length === 0) {
+          const allRes = await briefingsApi.list();
+          const allBriefings = Array.isArray(allRes) ? allRes : allRes.results || [];
+          matchedBriefings = allBriefings.filter((b: any) => {
+            const chName = (b.channel_name || "").toLowerCase().replace(/\s+/g, "");
+            const chHandle = (b.channel_handle || "").toLowerCase().replace(/[@\s]/g, "");
+            return (
+              chName.includes(querySlug) ||
+              chHandle.includes(querySlug) ||
+              b.creator_id === resolvedParams.id ||
+              (creatorData && b.creator_id === creatorData.id)
+            );
+          });
+        }
 
         if (isMounted) {
-          const targetList = matched.length > 0 ? matched : allBriefings;
-          if (targetList.length > 0) {
+          if (matchedBriefings.length > 0) {
             setVideos(
-              targetList.map((b: any) => ({
+              matchedBriefings.map((b: any) => ({
                 id: b.id,
                 title: b.title,
                 duration: b.duration || "10:00",
                 thumbnail: b.thumbnail_url || "/images/summary.png",
-                channelName: b.channel_name || (matched.length > 0 ? channel.name : "Tech Insights"),
-                subscribers: b.subscribers || channel.subscriberCount,
-                channelAvatar: b.channel_avatar_url || b.channel_avatar || channel.avatar,
+                channelName: b.channel_name || creatorData?.name || channel.name,
+                subscribers: b.subscribers || creatorData?.subscriber_count || channel.subscriberCount,
+                channelAvatar: b.channel_avatar_url || b.channel_avatar || creatorData?.avatar_url || channel.avatar,
                 summary: b.summary,
                 fullSummary: b.full_summary,
                 keyTakeaways: b.key_takeaways,
@@ -259,6 +280,8 @@ export default function ChannelDetailPage({
                 audioUrl: b.audio_url || b.audioUrl || "",
               }))
             );
+          } else {
+            setVideos([]);
           }
         }
       } catch (err) {
@@ -315,19 +338,35 @@ export default function ChannelDetailPage({
     setThankYouModalOpen(true);
   };
 
-  const handleToggleFollow = (following: boolean) => {
+  const handleToggleFollow = async (following: boolean) => {
     setChannel((prev) => ({ ...prev, isFollowing: following }));
     showToast(
       following
         ? `Following ${channel.name}! You will receive AI summaries.`
         : `Unfollowed ${channel.name}.`
     );
+    const targetId = channel.id || resolvedParams.id;
+    if (targetId) {
+      try {
+        await creatorsApi.toggleFollow(targetId);
+      } catch (err) {
+        console.error("Failed to toggle follow:", err);
+      }
+    }
   };
 
-  const handleConfirmUnfollow = () => {
+  const handleConfirmUnfollow = async () => {
     setChannel((prev) => ({ ...prev, isFollowing: false }));
     setIsUnfollowModalOpen(false);
     showToast(`Unfollowed ${channel.name}.`);
+    const targetId = channel.id || resolvedParams.id;
+    if (targetId) {
+      try {
+        await creatorsApi.toggleFollow(targetId);
+      } catch (err) {
+        console.error("Failed to unfollow creator:", err);
+      }
+    }
   };
 
   const handlePlayAudio = (video: ChannelVideoItem) => {
@@ -378,16 +417,30 @@ export default function ChannelDetailPage({
             onRequestUnfollow={() => setIsUnfollowModalOpen(true)}
           />
 
-          {/* 2. Video Cards Grid (Figma Frame 2147239874: 1152px x 1316px, 3 rows x 3 columns = 9 cards) */}
-          <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {videos.slice(0, itemsPerPage).map((video) => (
-              <ChannelVideoCard
-                key={video.id}
-                video={video}
-                onPlayAudio={handlePlayAudio}
-              />
-            ))}
-          </section>
+          {/* 2. Video Cards Grid (Figma Frame 2147239874) */}
+          {isLoadingVideos ? (
+            <div className="w-full min-h-[300px] flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 text-[#36C1FB] animate-spin" />
+              <p className="text-white/60 text-sm">Loading channel briefings...</p>
+            </div>
+          ) : videos.length > 0 ? (
+            <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {videos.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage).map((video) => (
+                <ChannelVideoCard
+                  key={video.id}
+                  video={video}
+                  onPlayAudio={handlePlayAudio}
+                />
+              ))}
+            </section>
+          ) : (
+            <div className="w-full min-h-[220px] rounded-2xl border border-white/10 bg-white/5 flex flex-col items-center justify-center gap-2 p-8 text-center">
+              <p className="text-white text-lg font-medium">No briefings generated for {channel.name} yet.</p>
+              <p className="text-[#D0D0D0] text-sm max-w-[480px]">
+                Briefings are automatically generated and updated as new videos are released.
+              </p>
+            </div>
+          )}
 
           {/* 3. Pagination Footer (Figma Pagination Footer: 1128px x 40px) */}
           <footer className="w-full max-w-[1128px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 pb-12 border-t border-white/10">
@@ -395,10 +448,10 @@ export default function ChannelDetailPage({
             <div className="flex items-center gap-2.5 text-white text-sm font-medium font-['Lato',sans-serif]">
               <span>Showing</span>
               <div className="h-10 px-2.5 rounded-md bg-white/20 border border-white/10 flex items-center gap-1 cursor-pointer hover:bg-white/25 transition-all">
-                <span>{itemsPerPage}</span>
+                <span>{Math.min(itemsPerPage, videos.length)}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#B5C8DB]" />
               </div>
-              <span>of 24 items</span>
+              <span>of {videos.length} items</span>
             </div>
 
             {/* Right Pagination Buttons (Previous, 1, 2, 3, ..., 10, Next) */}

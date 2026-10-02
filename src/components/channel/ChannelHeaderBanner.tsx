@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Video, Users, Check, UserPlus } from "lucide-react";
 
 export interface ChannelInfo {
+  id?: string;
   name: string;
   handle: string;
   avatar: string;
