@@ -14,6 +14,7 @@ export interface BriefingItem {
   subscribers: string;
   channelAvatarColor: string;
   channelInitials: string;
+  channelAvatar?: string;
   summary: string;
   fullSummary?: string;
   keyTakeaways?: string[];
@@ -32,6 +33,7 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -111,10 +113,23 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
         {/* Channel Profile Row (Figma Profile: 162px x 43px, gap 8px) */}
         <div className="flex items-center gap-2 h-[43px]">
           {/* Avatar (Figma Ellipse 2: 40px x 40px) */}
-          <div
-            className={`w-10 h-10 rounded-full bg-gradient-to-tr ${briefing.channelAvatarColor} ring-1 ring-white/30 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm`}
-          >
-            {briefing.channelInitials}
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-white/20 bg-slate-800 relative shadow-sm">
+            {briefing.channelAvatar && !avatarError ? (
+              <Image
+                src={briefing.channelAvatar}
+                alt={briefing.channelName}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div
+                className={`w-full h-full bg-gradient-to-tr ${briefing.channelAvatarColor || "from-purple-600 to-indigo-600"} flex items-center justify-center text-xs font-bold text-white`}
+              >
+                {briefing.channelInitials || briefing.channelName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
           </div>
           {/* Channel Text (Figma Frame 2147239872) */}
           <div className="flex flex-col justify-center min-w-0">

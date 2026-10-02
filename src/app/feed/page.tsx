@@ -25,7 +25,8 @@ function mapApiBriefingToItem(b: any): BriefingItem {
     channelName: b.channel_name,
     subscribers: b.subscribers,
     channelAvatarColor: b.channel_avatar_color || "from-purple-600 to-indigo-600",
-    channelInitials: b.channel_initials || b.channel_name.slice(0, 2).toUpperCase(),
+    channelInitials: b.channel_initials || (b.channel_name ? b.channel_name.slice(0, 2).toUpperCase() : "CC"),
+    channelAvatar: b.channel_avatar_url || b.channel_avatar || b.creator_avatar_url || b.creator?.avatar_url || "",
     summary: b.summary,
     fullSummary: b.full_summary,
     keyTakeaways: b.key_takeaways,
@@ -46,6 +47,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "4.11M subscribers",
     channelAvatarColor: "from-purple-600 to-indigo-600",
     channelInitials: "M",
+    channelAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
     summary:
       "This motivational speech emphasizes taking full responsibility for your life, defining your personal metrics for success, and embracing continuous self-discipline over temporary motivation.",
     fullSummary:
@@ -66,6 +68,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "5.82M subscribers",
     channelAvatarColor: "from-blue-600 to-cyan-600",
     channelInitials: "HL",
+    channelAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     summary:
       "Understand how dopamine drives energy, focus, and state of mind. Learn neurobiology-backed protocols to maintain consistent drive without burning out your baseline.",
     fullSummary:
@@ -86,6 +89,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "4.29M subscribers",
     channelAvatarColor: "from-zinc-700 to-zinc-900",
     channelInitials: "LF",
+    channelAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     summary:
       "Google DeepMind CEO Demis Hassabis shares breakthroughs in agentic reasoning, biological simulations, and the convergence towards human-level intelligence.",
     fullSummary:
@@ -106,6 +110,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "5.45M subscribers",
     channelAvatarColor: "from-emerald-500 to-teal-700",
     channelInitials: "AA",
+    channelAvatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     summary:
       "A complete system to capture ideas, summarize YouTube lectures automatically, and build an evergreen digital library that produces high-value creative output.",
     fullSummary:
@@ -126,6 +131,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "16.3M subscribers",
     channelAvatarColor: "from-amber-600 to-orange-700",
     channelInitials: "V",
+    channelAvatar: "https://yt3.ggpht.com/7vCbvtCqtjQ3YLgsJt7Y952MQV1sBvhllSCSxHP8_sVZdcPCBrITfhkN2RdyCuwPnsByq-1GoA=s800-c-k-c0x00ffffff-no-rj",
     summary:
       "At the atomic scale, electrostatic repulsion and quantum degeneracy pressure prevent electron clouds from ever truly making contact.",
     fullSummary:
@@ -146,6 +152,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "24.1M subscribers",
     channelAvatarColor: "from-red-600 to-rose-700",
     channelInitials: "TED",
+    channelAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     summary:
       "Discover the Golden Circle framework: people don't buy what you do; they buy why you do it. Transforming products into movements.",
     fullSummary:
@@ -166,6 +173,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "1.12M subscribers",
     channelAvatarColor: "from-blue-700 to-indigo-800",
     channelInitials: "AK",
+    channelAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
     summary:
       "A comprehensive walkthrough of transformer mechanics, next-token prediction, inference compute scaling, and post-training alignment techniques.",
     fullSummary:
@@ -186,6 +194,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "4.48M subscribers",
     channelAvatarColor: "from-orange-600 to-red-800",
     channelInitials: "IT",
+    channelAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
     summary:
       "Break through the 40% rule: when your mind says you are completely exhausted, you have only reached a fraction of your real physical and mental ceiling.",
     fullSummary:
@@ -206,6 +215,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "18.9M subscribers",
     channelAvatarColor: "from-red-500 to-zinc-900",
     channelInitials: "MKB",
+    channelAvatar: "https://yt3.ggpht.com/qu4TmIaYUlS41-dJ9gZ7DUR3nilvmB5_11i6OKSdvNnBNiyOusZP1bMN6ICnuxtjFBb6ioKgRQ=s800-c-k-c0x00ffffff-no-rj",
     summary:
       "Deep dive into the latest breakthroughs in mixed reality headsets, ultra-low latency silicon, and the future of ambient computing interfaces.",
     fullSummary:
@@ -226,6 +236,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "3.2M subscribers",
     channelAvatarColor: "from-cyan-600 to-blue-700",
     channelInitials: "DS",
+    channelAvatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     summary:
       "This week's top breakthrough: modeling DNA, RNA, ligands, and antibody complexes with atomic-precision deep learning architectures.",
     fullSummary:
@@ -246,6 +257,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "3.98M subscribers",
     channelAvatarColor: "from-purple-600 to-pink-700",
     channelInitials: "TB",
+    channelAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
     summary:
       "Neuroscience protocols to trigger 400% productivity gains by systematically entering flow states during complex creative work.",
     fullSummary:
@@ -266,6 +278,7 @@ const initialBriefings: BriefingItem[] = [
     subscribers: "1.45M subscribers",
     channelAvatarColor: "from-teal-600 to-emerald-800",
     channelInitials: "QM",
+    channelAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     summary:
       "An essential weekly retrospective on topological qubits, surface codes, and error correction milestones across major quantum laboratories.",
     fullSummary:

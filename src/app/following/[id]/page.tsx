@@ -251,11 +251,12 @@ export default function ChannelDetailPage({
                 thumbnail: b.thumbnail_url || "/images/summary.png",
                 channelName: b.channel_name || (matched.length > 0 ? channel.name : "Tech Insights"),
                 subscribers: b.subscribers || channel.subscriberCount,
-                channelAvatar: channel.avatar,
+                channelAvatar: b.channel_avatar_url || b.channel_avatar || channel.avatar,
                 summary: b.summary,
                 fullSummary: b.full_summary,
                 keyTakeaways: b.key_takeaways,
                 isSaved: b.is_saved ?? false,
+                audioUrl: b.audio_url || b.audioUrl || "",
               }))
             );
           }
@@ -342,6 +343,7 @@ export default function ChannelDetailPage({
       summary: video.summary,
       fullSummary: video.fullSummary,
       keyTakeaways: video.keyTakeaways,
+      audioUrl: video.audioUrl,
     };
     setSelectedBriefing(briefing);
   };

@@ -12,6 +12,7 @@ const DEFAULT_CHANNELS = [
     id: "1",
     name: "Motiversity",
     subscribers: "4.11M subscribers",
+    avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
     avatar_gradient: "from-purple-600 to-indigo-600",
     initials: "M",
     handle: "@motiversity",
@@ -20,6 +21,7 @@ const DEFAULT_CHANNELS = [
     id: "2",
     name: "Huberman Lab",
     subscribers: "5.82M subscribers",
+    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     avatar_gradient: "from-blue-600 to-cyan-600",
     initials: "HL",
     handle: "@hubermanlab",
@@ -28,6 +30,7 @@ const DEFAULT_CHANNELS = [
     id: "3",
     name: "Lex Fridman",
     subscribers: "4.29M subscribers",
+    avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     avatar_gradient: "from-zinc-700 to-zinc-900",
     initials: "LF",
     handle: "@lexfridman",
@@ -36,6 +39,7 @@ const DEFAULT_CHANNELS = [
     id: "4",
     name: "Ali Abdaal",
     subscribers: "5.45M subscribers",
+    avatar_url: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     avatar_gradient: "from-emerald-500 to-teal-700",
     initials: "AA",
     handle: "@aliabdaal",
@@ -44,11 +48,46 @@ const DEFAULT_CHANNELS = [
     id: "5",
     name: "TED Talks",
     subscribers: "24.1M subscribers",
+    avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     avatar_gradient: "from-red-600 to-rose-700",
     initials: "TED",
     handle: "@tedtalks",
   },
 ];
+
+function SidebarChannelAvatar({
+  name,
+  avatarUrl,
+  gradient,
+  initials,
+}: {
+  name: string;
+  avatarUrl?: string;
+  gradient: string;
+  initials: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  if (avatarUrl && !hasError) {
+    return (
+      <div className="relative w-10 h-10 rounded-full overflow-hidden ring-1 ring-white/30 shrink-0 bg-slate-800">
+        <Image
+          src={avatarUrl}
+          alt={name}
+          fill
+          className="object-cover"
+          onError={() => setHasError(true)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`w-10 h-10 rounded-full bg-gradient-to-tr ${gradient} ring-1 ring-white/30 shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm`}
+    >
+      {initials}
+    </div>
+  );
+}
 
 export default function FeedFollowingSidebar() {
   const [channels, setChannels] = useState<any[]>(DEFAULT_CHANNELS);
@@ -58,10 +97,13 @@ export default function FeedFollowingSidebar() {
     const fetchChannels = async () => {
       setIsLoading(true);
       try {
-        // Try getting creators followed by current user
-        let list = await creatorsApi.getFollowing();
+        let list: any[] = [];
+        try {
+          list = await creatorsApi.getFollowing();
+        } catch {
+          list = [];
+        }
         if (!list || list.length === 0) {
-          // If not following anyone yet, fetch all available creators
           const all = await creatorsApi.list();
           list = Array.isArray(all) ? all : all.results || [];
         }
@@ -102,7 +144,8 @@ export default function FeedFollowingSidebar() {
         ) : (
           channels.map((channel) => {
             const gradient = channel.avatar_gradient || channel.avatarColor || "from-purple-600 to-indigo-600";
-            const initials = channel.initials || channel.name.slice(0, 2).toUpperCase();
+            const initials = channel.initials || (channel.name ? channel.name.slice(0, 2).toUpperCase() : "CR");
+            const avatarSrc = channel.avatar_url || channel.avatar;
 
             return (
               <Link
@@ -112,23 +155,12 @@ export default function FeedFollowingSidebar() {
               >
                 {/* Left: Avatar & Name */}
                 <div className="flex items-center gap-2.5 min-w-0">
-                  {/* Channel Avatar */}
-                  {channel.avatar_url ? (
-                    <div className="relative w-10 h-10 rounded-full overflow-hidden ring-1 ring-white/30 shrink-0">
-                      <Image
-                        src={channel.avatar_url}
-                        alt={channel.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={`w-10 h-10 rounded-full bg-gradient-to-tr ${gradient} ring-1 ring-white/30 shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm`}
-                    >
-                      {initials}
-                    </div>
-                  )}
+                  <SidebarChannelAvatar
+                    name={channel.name}
+                    avatarUrl={avatarSrc}
+                    gradient={gradient}
+                    initials={initials}
+                  />
 
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-medium text-white truncate font-['Lato',sans-serif] group-hover:text-cyan-300 transition-colors">

@@ -17,6 +17,7 @@ export interface LibraryItem {
   keyTakeaways?: string[];
   savedAt?: string;
   category?: string;
+  audioUrl?: string;
 }
 
 interface LibraryCardProps {
@@ -30,6 +31,7 @@ export default function LibraryCard({ item, onPlayAudio, onRemove }: LibraryCard
   const [isSaved, setIsSaved] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,14 +98,21 @@ export default function LibraryCard({ item, onPlayAudio, onRemove }: LibraryCard
         {/* Profile Row: (Figma Profile: width 162px, height 43px, gap 8px) */}
         <div className="flex items-center gap-2 h-[43px]">
           {/* Avatar (Figma Ellipse 2: 40px x 40px) */}
-          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-white/20 bg-slate-800 relative">
-            <Image
-              src={item.channelAvatar}
-              alt={item.channelName}
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-            />
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-white/20 bg-slate-800 relative shadow-sm">
+            {item.channelAvatar && !avatarError ? (
+              <Image
+                src={item.channelAvatar}
+                alt={item.channelName}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                {item.channelName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
           </div>
 
           {/* Name & Subscribers (Figma Frame 2147239872: width 114px, height 43px) */}

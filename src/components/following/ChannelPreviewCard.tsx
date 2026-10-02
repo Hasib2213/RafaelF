@@ -2,19 +2,23 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Video, Users, UserPlus, X } from "lucide-react";
+import { Video, Users, UserPlus, X, ExternalLink, Check, Loader2 } from "lucide-react";
 import { Creator } from "@/components/following/CreatorCard";
 
 interface ChannelPreviewCardProps {
   creator?: Partial<Creator>;
-  onFollow: () => void;
-  onCancel: () => void;
+  onFollow?: () => void;
+  onCancel?: () => void;
+  onExplore?: (creator: Partial<Creator>) => void;
+  isLoading?: boolean;
 }
 
 export default function ChannelPreviewCard({
   creator,
   onFollow,
   onCancel,
+  onExplore,
+  isLoading = false,
 }: ChannelPreviewCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -26,6 +30,7 @@ export default function ChannelPreviewCard({
   const description =
     creator?.description ||
     "AI, technology trends, and future innovations Exploring how innovation is reshaping industries.....";
+  const isFollowing = creator?.isFollowing ?? true;
 
   return (
     <div
@@ -52,9 +57,16 @@ export default function ChannelPreviewCard({
       {/* 2. Details Column (Figma Frame 2147239898: width 912px, height 162px) */}
       <div className="flex-1 w-full flex flex-col items-start gap-3 min-w-0">
         {/* Channel Name */}
-        <h3 className="text-white text-2xl font-semibold font-['Lato',sans-serif] leading-[140%] tracking-[-0.02em] truncate max-w-full">
-          {name}
-        </h3>
+        <div className="flex items-center gap-2 max-w-full">
+          <h3 className="text-white text-2xl font-semibold font-['Lato',sans-serif] leading-[140%] tracking-[-0.02em] truncate">
+            {name}
+          </h3>
+          {isFollowing && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Check className="w-3 h-3" /> Followed
+            </span>
+          )}
+        </div>
 
         {/* Stats Row (Figma Frame 2147239877) */}
         <div className="flex flex-row items-center gap-3 text-white text-base font-normal font-['Lato',sans-serif] leading-[150%] tracking-[-0.02em]">
@@ -97,24 +109,45 @@ export default function ChannelPreviewCard({
 
         {/* Action Buttons Row (Figma Frame 2147239899: width 912px, height 44px, gap 12px) */}
         <div className="w-full flex flex-row items-center gap-3 pt-1">
-          {/* Primary Follow Button (Figma: width 796px, height 44px) */}
-          <button
-            type="button"
-            onClick={onFollow}
-            className="flex-1 h-11 px-4 rounded-lg bg-[linear-gradient(89.44deg,#2563EB_-47.4%,#7A3BED_76.5%,#A842D4_101.93%)] text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] transition-all shadow-md shadow-indigo-900/40 cursor-pointer select-none"
-          >
-            <UserPlus className="w-5 h-5 text-white shrink-0" strokeWidth={2.2} />
-            <span>Follow Channel</span>
-          </button>
+          {/* Primary Action Button */}
+          {isFollowing ? (
+            <button
+              type="button"
+              onClick={() => onExplore?.(creator || {})}
+              className="flex-1 h-11 px-4 rounded-lg bg-[linear-gradient(89.44deg,#2563EB_-47.4%,#7A3BED_76.5%,#A842D4_101.93%)] text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] transition-all shadow-md shadow-indigo-900/40 cursor-pointer select-none"
+            >
+              <ExternalLink className="w-5 h-5 text-white shrink-0" strokeWidth={2.2} />
+              <span>Explore Channel Briefings</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onFollow}
+              className="flex-1 h-11 px-4 rounded-lg bg-[linear-gradient(89.44deg,#2563EB_-47.4%,#7A3BED_76.5%,#A842D4_101.93%)] text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] transition-all shadow-md shadow-indigo-900/40 cursor-pointer select-none disabled:opacity-60"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 text-white animate-spin shrink-0" />
+                  <span>Following...</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-5 h-5 text-white shrink-0" strokeWidth={2.2} />
+                  <span>Follow Channel</span>
+                </>
+              )}
+            </button>
+          )}
 
-          {/* Cancel Button (Figma: width 104px, height 44px) */}
+          {/* Dismiss / Close Button */}
           <button
             type="button"
             onClick={onCancel}
             className="w-[104px] h-11 px-4 rounded-lg bg-white/20 hover:bg-white/30 active:scale-[0.98] border border-white/10 text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] text-center flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none"
           >
             <X className="w-4 h-4 text-white shrink-0" />
-            <span>Cancel</span>
+            <span>{isFollowing ? "Close" : "Cancel"}</span>
           </button>
         </div>
       </div>

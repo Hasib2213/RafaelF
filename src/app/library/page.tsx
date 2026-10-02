@@ -36,12 +36,13 @@ function mapBackendLibraryItem(item: any): LibraryItem {
     thumbnail: b.thumbnail_url || "/images/summary.png",
     channelName: b.channel_name || "Creator",
     subscribers: b.subscribers || "1M subscribers",
-    channelAvatar: b.channel_avatar_url || "/images/creators.png",
+    channelAvatar: b.channel_avatar_url || b.channel_avatar || b.creator_avatar_url || b.creator?.avatar_url || item.channelAvatar || "",
     summary: b.summary || "",
     fullSummary: b.full_summary || "",
     keyTakeaways: b.key_takeaways || [],
     savedAt: item.saved_at || item.created_at || b.created_at || new Date().toISOString(),
     category: b.category || "General",
+    audioUrl: b.audio_url || item.audio_url || "",
   };
 }
 
@@ -117,9 +118,11 @@ export default function LibraryPage() {
       subscribers: item.subscribers,
       channelAvatarColor: "from-blue-600 to-indigo-700",
       channelInitials: item.channelName.slice(0, 2).toUpperCase(),
+      channelAvatar: item.channelAvatar,
       summary: item.summary,
       fullSummary: item.fullSummary,
       keyTakeaways: item.keyTakeaways,
+      audioUrl: item.audioUrl,
     };
     setSelectedBriefing(briefing);
   };

@@ -17,6 +17,7 @@ export interface ChannelVideoItem {
   fullSummary?: string;
   keyTakeaways?: string[];
   isSaved?: boolean;
+  audioUrl?: string;
 }
 
 interface ChannelVideoCardProps {

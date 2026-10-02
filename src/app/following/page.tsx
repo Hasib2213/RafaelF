@@ -8,7 +8,7 @@ import ChannelPreviewCard from "@/components/following/ChannelPreviewCard";
 import UnfollowModal from "@/components/following/UnfollowModal";
 import Footer from "@/components/Footer";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { Plus, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X, ExternalLink, CheckCircle, Check, Eye } from "lucide-react";
+import { Plus, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X, ExternalLink, CheckCircle, Check, Eye, Loader2 } from "lucide-react";
 
 type SortFilter = "recently" | "oldest" | "a-z" | "z-a";
 
@@ -134,16 +134,39 @@ const initialCreators: Creator[] = [
 
 import { creatorsApi } from "@/lib/api";
 
+function normalizeYoutubeUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("@")) {
+    return `https://www.youtube.com/${trimmed}`;
+  }
+  if (trimmed.startsWith("youtube.com/") || trimmed.startsWith("youtu.be/")) {
+    return `https://${trimmed}`;
+  }
+  if (trimmed.startsWith("www.youtube.com/")) {
+    return `https://${trimmed}`;
+  }
+  return `https://www.youtube.com/@${trimmed.replace(/^@/, "")}`;
+}
+
 function mapBackendCreator(c: any): Creator {
+  const rawVideoCount = c.video_count !== undefined && c.video_count !== null ? c.video_count : 10;
+  const videoCountStr = String(rawVideoCount).toLowerCase().includes("video")
+    ? String(rawVideoCount)
+    : `${rawVideoCount} Videos`;
+
   return {
-    id: c.id,
-    name: c.name,
-    handle: c.handle,
-    avatar: c.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-    initials: c.initials || c.name.slice(0, 2).toUpperCase(),
+    id: String(c.id),
+    name: c.name || "Creator",
+    handle: c.handle || "@creator",
+    avatar: c.avatar_url || c.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+    initials: c.initials || (c.name ? c.name.slice(0, 2).toUpperCase() : "CR"),
     avatarGradient: c.avatar_gradient || "bg-gradient-to-tr from-cyan-500 to-blue-600",
     description: c.description || "",
-    videoCount: `${c.video_count || 10} Videos`,
+    videoCount: videoCountStr,
     subscriberCount: c.subscriber_count || "1M subscribers",
     isFollowing: c.is_following ?? true,
     createdAt: new Date(c.created_at || Date.now()).getTime(),
@@ -154,6 +177,7 @@ export default function FollowingPage() {
   const [creators, setCreators] = useState<Creator[]>(initialCreators);
   const [previewCreator, setPreviewCreator] = useState<Creator | null>(null);
   const [channelUrl, setChannelUrl] = useState("");
+  const [isAddingCreator, setIsAddingCreator] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [filterActive, setFilterActive] = useState<SortFilter>("recently");
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -203,97 +227,75 @@ export default function FollowingPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
-      setToastMessage(null), 4000;
-    });
-  };
-
-  const triggerPreviewFromUrl = (url: string) => {
-    if (!url.trim()) return;
-
-    let cleanName = "Tech Insights";
-    let cleanHandle = "@techinsights";
-    try {
-      if (url.includes("@")) {
-        const parts = url.split("@");
-        cleanHandle = "@" + parts[1].split("/")[0].split("?")[0];
-        const raw = cleanHandle.replace("@", "").replace(/[._-]/g, " ");
-        cleanName = raw.charAt(0).toUpperCase() + raw.slice(1);
-      } else if (url.includes("youtube.com/")) {
-        const slug = url.split("youtube.com/")[1].split("/")[0].split("?")[0];
-        cleanHandle = "@" + slug.toLowerCase();
-        cleanName = slug.charAt(0).toUpperCase() + slug.slice(1);
-      }
-    } catch {
-      // fallback
-    }
-
-    const newPreview: Creator = {
-      id: "preview-" + Date.now(),
-      name: cleanName || "Tech Insights",
-      handle: cleanHandle || "@techinsights",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80",
-      initials: (cleanName || "TI").slice(0, 2).toUpperCase(),
-      avatarGradient: "bg-gradient-to-tr from-cyan-500 to-blue-600",
-      description: "AI, technology trends, and future innovations Exploring how innovation is reshaping industries.....",
-      videoCount: "24 Videos",
-      subscriberCount: "2.4M subscribers",
-      isFollowing: false,
-    };
-
-    setPreviewCreator(newPreview);
-    showToast(`Channel "${cleanName}" detected! Ready to follow.`);
+      setToastMessage(null);
+    }, 4000);
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pasted = e.clipboardData.getData("text");
     if (pasted && pasted.trim()) {
-      setChannelUrl(pasted);
-      setTimeout(() => {
-        triggerPreviewFromUrl(pasted);
-      }, 150);
+      setChannelUrl(pasted.trim());
     }
   };
 
-  const handleAddCreator = (e: React.FormEvent) => {
+  const handleAddCreator = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (channelUrl.trim()) {
-      triggerPreviewFromUrl(channelUrl);
-    } else {
-      triggerPreviewFromUrl("https://youtube.com/@techinsights");
+    const raw = channelUrl.trim();
+    if (!raw) {
+      showToast("Please enter a YouTube channel or video link.");
+      return;
+    }
+
+    const targetUrl = normalizeYoutubeUrl(raw);
+    setIsAddingCreator(true);
+
+    try {
+      const res = await creatorsApi.addByUrl(targetUrl);
+      if (res && res.creator) {
+        const mapped = mapBackendCreator(res.creator);
+        setCreators((prev) => [
+          mapped,
+          ...prev.filter(
+            (c) => c.id !== mapped.id && c.handle.toLowerCase() !== mapped.handle.toLowerCase()
+          ),
+        ]);
+        setPreviewCreator(mapped);
+        setChannelUrl("");
+        showToast(res.message || `Channel ${mapped.name} added and followed successfully!`);
+      } else {
+        showToast("Channel added successfully!");
+      }
+    } catch (err: any) {
+      console.error("Backend add creator error:", err);
+      const errMsg = err?.message || "Failed to retrieve channel from YouTube. Please check the URL.";
+      showToast(errMsg);
+    } finally {
+      setIsAddingCreator(false);
     }
   };
 
   const handleFollowPreview = async () => {
     if (!previewCreator) return;
     try {
-      if (channelUrl.trim()) {
-        const res = await creatorsApi.addByUrl(channelUrl.trim());
-        if (res && res.creator) {
-          const mapped = mapBackendCreator(res.creator);
-          setCreators((prev) => [mapped, ...prev.filter((c) => c.id !== mapped.id)]);
-          showToast(`Successfully followed ${mapped.name}!`);
-          setPreviewCreator(null);
-          setChannelUrl("");
-          return;
-        }
-      }
-    } catch (err: any) {
-      console.error("Backend add creator error:", err);
+      await creatorsApi.toggleFollow(previewCreator.id);
+      setCreators((prev) =>
+        prev.map((c) => (c.id === previewCreator.id ? { ...c, isFollowing: true } : c))
+      );
+      setPreviewCreator((prev) => (prev ? { ...prev, isFollowing: true } : null));
+      showToast(`Now following ${previewCreator.name}!`);
+    } catch (err) {
+      console.error("Failed to follow preview creator:", err);
     }
-    const newCreator: Creator = {
-      ...previewCreator,
-      id: Date.now().toString(),
-      isFollowing: true,
-      createdAt: Date.now(),
-    };
-    setCreators([newCreator, ...creators]);
-    showToast(`Successfully followed ${previewCreator.name}!`);
-    setPreviewCreator(null);
+  };
+
+  const handleExplorePreview = (c: Partial<Creator>) => {
+    const slug = c.handle ? c.handle.replace("@", "") : (c.id || "techinsights");
+    window.location.href = `/following/${slug}`;
   };
 
   const handleCancelPreview = () => {
     setPreviewCreator(null);
-    showToast("Channel preview dismissed.");
+    showToast("Channel preview closed.");
   };
 
   const handleConfirmUnfollow = async () => {
@@ -402,6 +404,8 @@ export default function FollowingPage() {
                 creator={previewCreator}
                 onFollow={handleFollowPreview}
                 onCancel={handleCancelPreview}
+                onExplore={handleExplorePreview}
+                isLoading={isAddingCreator}
               />
             ) : (
               /* Desktop - 44: Input & Add Button Row (Figma Frame 2147240252) */
@@ -414,18 +418,22 @@ export default function FollowingPage() {
                   <input
                     type="text"
                     value={channelUrl}
+                    disabled={isAddingCreator}
                     onChange={(e) => setChannelUrl(e.target.value)}
                     onPaste={handlePaste}
-                    placeholder="Paste your youtube channel or video link here...."
-                    className="w-full bg-transparent text-base font-medium text-white placeholder-[#D0D0D0] outline-none font-['Lato',sans-serif]"
+                    placeholder="Paste YouTube channel or video link (e.g. https://youtube.com/@mkbhd)...."
+                    className="w-full bg-transparent text-base font-medium text-white placeholder-[#D0D0D0] outline-none font-['Lato',sans-serif] disabled:opacity-60"
                   />
 
                   {/* 1-Click Paste Demo Helper */}
                   <button
                     type="button"
-                    onClick={() => triggerPreviewFromUrl("https://youtube.com/@techinsights")}
-                    className="hidden md:inline-flex text-xs px-2.5 py-1 rounded bg-white/15 hover:bg-white/25 text-[#36C1FB] font-medium transition-all shrink-0 cursor-pointer border border-[#36C1FB]/20"
-                    title="Click to simulate pasting a YouTube channel URL"
+                    disabled={isAddingCreator}
+                    onClick={() => {
+                      setChannelUrl("https://youtube.com/@veritasium");
+                    }}
+                    className="hidden md:inline-flex text-xs px-2.5 py-1 rounded bg-white/15 hover:bg-white/25 text-[#36C1FB] font-medium transition-all shrink-0 cursor-pointer border border-[#36C1FB]/20 disabled:opacity-50"
+                    title="Click to populate sample YouTube channel URL"
                   >
                     Paste sample
                   </button>
@@ -434,10 +442,20 @@ export default function FollowingPage() {
                 {/* Add Button (Figma Primary button: 147px x 48px) */}
                 <button
                   type="submit"
-                  className="h-12 px-5 rounded-lg bg-[linear-gradient(89.44deg,#2563EB_-47.4%,#7A3BED_76.5%,#A842D4_101.93%)] text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-md shadow-indigo-900/40 shrink-0 cursor-pointer select-none"
+                  disabled={isAddingCreator}
+                  className="h-12 px-5 rounded-lg bg-[linear-gradient(89.44deg,#2563EB_-47.4%,#7A3BED_76.5%,#A842D4_101.93%)] text-white text-base font-semibold font-['Lato',sans-serif] leading-[150%] flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-md shadow-indigo-900/40 shrink-0 cursor-pointer select-none disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-5 h-5 text-white" strokeWidth={2.2} />
-                  <span>Add Creator</span>
+                  {isAddingCreator ? (
+                    <>
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      <span>Adding Creator...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5 text-white" strokeWidth={2.2} />
+                      <span>Add Creator</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}

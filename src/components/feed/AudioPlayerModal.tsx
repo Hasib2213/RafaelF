@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { BriefingItem } from "./BriefingCard";
-import { Check } from "lucide-react";
+import { Check, Volume2, Sparkles } from "lucide-react";
 import { libraryApi } from "@/lib/api";
 
 interface AudioPlayerModalProps {
@@ -12,21 +12,241 @@ interface AudioPlayerModalProps {
   onOpenFeedback?: () => void;
 }
 
+function formatTime(seconds: number): string {
+  if (isNaN(seconds) || seconds < 0) return "00:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function AudioPlayerModal({
   briefing,
   onClose,
   onOpenFeedback,
 }: AudioPlayerModalProps) {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progressPercent, setProgressPercent] = useState(28); // ~02:25 of 08:25
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [currentTimeStr, setCurrentTimeStr] = useState("00:00");
+  const [durationStr, setDurationStr] = useState(briefing.duration || "08:25");
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
   const [isSaving, setIsSaving] = useState(false);
-  const [currentTimeStr, setCurrentTimeStr] = useState("02:25");
+  const [hasAudioUrl, setHasAudioUrl] = useState(Boolean(briefing.audioUrl?.trim()));
+  const [avatarError, setAvatarError] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const ttsStartTimeRef = useRef<number>(0);
+  const ttsEstimatedDurationRef = useRef<number>(60);
 
+  // Sync saved state
   useEffect(() => {
     setIsSaved(briefing.isSaved ?? false);
   }, [briefing.isSaved, briefing.id]);
+
+  // Audio setup and auto-play
+  useEffect(() => {
+    const audioUrl = briefing.audioUrl?.trim();
+    if (audioUrl) {
+      setHasAudioUrl(true);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      const onLoadedMetadata = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          setDurationStr(formatTime(audio.duration));
+        }
+      };
+
+      const onTimeUpdate = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const percent = (audio.currentTime / audio.duration) * 100;
+          setProgressPercent(percent);
+          setCurrentTimeStr(formatTime(audio.currentTime));
+        }
+      };
+
+      const onEnded = () => {
+        setIsPlaying(false);
+        setProgressPercent(0);
+        setCurrentTimeStr("00:00");
+      };
+
+      const onError = () => {
+        console.warn("[AudioPlayerModal] Audio failed to load. Falling back to SpeechSynthesis.");
+        setHasAudioUrl(false);
+      };
+
+      audio.addEventListener("loadedmetadata", onLoadedMetadata);
+      audio.addEventListener("timeupdate", onTimeUpdate);
+      audio.addEventListener("ended", onEnded);
+      audio.addEventListener("error", onError);
+
+      // Attempt autoplay
+      audio.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.log("[AudioPlayerModal] Autoplay prevented, waiting for user click:", err);
+        setIsPlaying(false);
+      });
+
+      return () => {
+        audio.pause();
+        audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+        audio.removeEventListener("timeupdate", onTimeUpdate);
+        audio.removeEventListener("ended", onEnded);
+        audio.removeEventListener("error", onError);
+        audioRef.current = null;
+      };
+    } else {
+      // No Cloudinary audio file - use SpeechSynthesis
+      setHasAudioUrl(false);
+      startSpeechSynthesis();
+
+      return () => {
+        stopSpeechSynthesis();
+      };
+    }
+  }, [briefing.audioUrl, briefing.id]);
+
+  // SpeechSynthesis helpers
+  const startSpeechSynthesis = (startOffsetPercent = 0) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+
+    const textToRead = briefing.fullSummary || briefing.summary || briefing.title || "";
+    if (!textToRead.trim()) return;
+
+    // Approximate duration: ~150 words per minute
+    const wordCount = textToRead.split(/\s+/).length;
+    const estSec = Math.max(15, Math.round((wordCount / 150) * 60));
+    ttsEstimatedDurationRef.current = estSec;
+    setDurationStr(formatTime(estSec));
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+
+    // Try finding an English natural voice
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find((v) =>
+      v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("Samantha"))
+    ) || voices.find((v) => v.lang.startsWith("en"));
+    if (naturalVoice) utterance.voice = naturalVoice;
+
+    utterance.onstart = () => {
+      setIsPlaying(true);
+      setTtsPlaying(true);
+      ttsStartTimeRef.current = Date.now() - (startOffsetPercent / 100) * estSec * 1000;
+
+      if (ttsIntervalRef.current) clearInterval(ttsIntervalRef.current);
+      ttsIntervalRef.current = setInterval(() => {
+        const elapsed = (Date.now() - ttsStartTimeRef.current) / 1000;
+        const pct = Math.min(100, (elapsed / estSec) * 100);
+        setProgressPercent(pct);
+        setCurrentTimeStr(formatTime(elapsed));
+        if (pct >= 100) {
+          if (ttsIntervalRef.current) clearInterval(ttsIntervalRef.current);
+          setIsPlaying(false);
+          setTtsPlaying(false);
+        }
+      }, 500);
+    };
+
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setTtsPlaying(false);
+      if (ttsIntervalRef.current) clearInterval(ttsIntervalRef.current);
+      setProgressPercent(100);
+    };
+
+    utterance.onerror = () => {
+      setIsPlaying(false);
+      setTtsPlaying(false);
+      if (ttsIntervalRef.current) clearInterval(ttsIntervalRef.current);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeechSynthesis = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    if (ttsIntervalRef.current) clearInterval(ttsIntervalRef.current);
+    setTtsPlaying(false);
+  };
+
+  const handlePlayPause = () => {
+    if (hasAudioUrl && audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    } else {
+      // SpeechSynthesis toggle
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        if (isPlaying) {
+          window.speechSynthesis.pause();
+          setIsPlaying(false);
+        } else {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+            setIsPlaying(true);
+          } else {
+            startSpeechSynthesis(progressPercent >= 100 ? 0 : progressPercent);
+          }
+        }
+      }
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newPercent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+    setProgressPercent(newPercent);
+
+    if (hasAudioUrl && audioRef.current && audioRef.current.duration) {
+      audioRef.current.currentTime = (newPercent / 100) * audioRef.current.duration;
+      setCurrentTimeStr(formatTime(audioRef.current.currentTime));
+    } else {
+      // Restart speech from estimated position
+      startSpeechSynthesis(newPercent);
+    }
+  };
+
+  const handleRewind = () => {
+    if (hasAudioUrl && audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
+    } else {
+      startSpeechSynthesis(0);
+    }
+  };
+
+  const handleForward = () => {
+    if (hasAudioUrl && audioRef.current && audioRef.current.duration) {
+      audioRef.current.currentTime = Math.min(audioRef.current.duration, audioRef.current.currentTime + 10);
+    } else {
+      startSpeechSynthesis(Math.min(95, progressPercent + 20));
+    }
+  };
+
+  const handleDownload = () => {
+    if (briefing.audioUrl) {
+      const a = document.createElement("a");
+      a.href = briefing.audioUrl;
+      a.download = `${briefing.title.slice(0, 30)}.mp3`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    setIsDownloaded(true);
+    setTimeout(() => setIsDownloaded(false), 2500);
+  };
 
   const handleToggleSave = async () => {
     if (isSaving) return;
@@ -51,28 +271,6 @@ export default function AudioPlayerModal({
     }
   };
 
-  // Simulate audio playback progress
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setProgressPercent((prev) => {
-        if (prev >= 100) {
-          setIsPlaying(false);
-          return 0;
-        }
-        return prev + 0.4;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const newPercent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
-    setProgressPercent(newPercent);
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 figma-backdrop-overlay animate-fadeIn"
@@ -83,14 +281,13 @@ export default function AudioPlayerModal({
       }}
       onClick={onClose}
     >
-      {/* Modal Container (Figma Navigation: 516px x 737px, border-radius 16px) */}
+      {/* Modal Container */}
       <div
         className="w-full max-w-[516px] h-[737px] max-h-[96vh] rounded-2xl overflow-hidden bg-[#2B2A7D] [background-image:linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] shadow-[0px_4px_4px_rgba(0,0,0,0.15)] border border-white/20 flex flex-col relative select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Media Header (Figma Frame 2147239886: 516px x 240px) */}
+        {/* Top Media Header */}
         <div className="relative w-full h-[240px] shrink-0 overflow-hidden bg-slate-900 rounded-t-2xl">
-          {/* Background Image with Figma Gradient Overlay */}
           <Image
             src={briefing.thumbnail}
             alt={briefing.title}
@@ -98,14 +295,27 @@ export default function AudioPlayerModal({
             className="object-cover"
             sizes="516px"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/40 via-70% to-black/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 via-70% to-black/85" />
 
-          {/* Close Button (Figma charm:cross - 40px x 40px, top 16px, right 16px) */}
+          {/* Audio Source Badge */}
+          <div className="absolute top-4 left-4 z-20">
+            {hasAudioUrl ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-[#36C1FB] border border-[#36C1FB]/40 backdrop-blur-md shadow-md">
+                <Volume2 className="w-3.5 h-3.5" /> Cloud AI Audio
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-950/80 text-purple-300 border border-purple-400/40 backdrop-blur-md shadow-md">
+                <Sparkles className="w-3.5 h-3.5" /> AI Speech Reader
+              </span>
+            )}
+          </div>
+
+          {/* Close Button */}
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-4 right-4 w-10 h-10 rounded-[18px] bg-black/40 hover:bg-black/60 active:scale-95 text-white flex items-center justify-center transition-all z-20 border border-white/10"
+            className="absolute top-4 right-4 w-10 h-10 rounded-[18px] bg-black/50 hover:bg-black/70 active:scale-95 text-white flex items-center justify-center transition-all z-20 border border-white/20"
           >
             <svg
               width="18"
@@ -124,41 +334,42 @@ export default function AudioPlayerModal({
             </svg>
           </button>
 
-          {/* Progress Bar (Figma Frame 2147239885: 484px x 8px, left 16px, top 177px) */}
+          {/* Progress Bar */}
           <div className="absolute left-4 right-4 bottom-14 z-20">
             <div
-              className="w-full h-2 rounded-[13px] bg-white/40 relative cursor-pointer group"
+              className="w-full h-2 rounded-[13px] bg-white/30 relative cursor-pointer group"
               onClick={handleSeek}
             >
               {/* Active Bar */}
               <div
-                className="h-2 rounded-[13px] bg-[#2563EB] relative transition-all"
-                style={{ width: `${progressPercent}%` }}
+                className="h-2 rounded-[13px] bg-[#36C1FB] relative transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
               >
-                {/* Scrubber Knob (Figma Ellipse 47058: 16px x 16px) */}
-                <div className="absolute -right-2 -top-1 w-4 h-4 rounded-full bg-[#D9D9D9] border-2 border-[#2563EB] shadow-md group-hover:scale-125 transition-transform" />
+                {/* Scrubber Knob */}
+                <div className="absolute -right-2 -top-1 w-4 h-4 rounded-full bg-white border-2 border-[#36C1FB] shadow-md group-hover:scale-125 transition-transform" />
               </div>
             </div>
 
-            {/* Timestamps (Figma: 02:25 and 08:25 at top 190px) */}
-            <div className="flex justify-between items-center text-xs font-normal text-white font-['Lato',sans-serif] mt-1.5 px-0.5">
+            {/* Timestamps */}
+            <div className="flex justify-between items-center text-xs font-medium text-white/90 font-['Lato',sans-serif] mt-1.5 px-0.5">
               <span>{currentTimeStr}</span>
-              <span>{briefing.duration || "08:25"}</span>
+              <span>{durationStr}</span>
             </div>
           </div>
 
-          {/* Player Controls (Figma Frame 2147239882: 132px x 36px, centered at bottom) */}
+          {/* Player Controls */}
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20">
-            {/* Previous Track / Rewind */}
+            {/* Rewind 10s */}
             <button
               type="button"
-              aria-label="Previous"
-              onClick={() => setProgressPercent(0)}
-              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all text-white"
+              aria-label="Rewind"
+              onClick={handleRewind}
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all text-white cursor-pointer"
+              title="Rewind"
             >
               <svg
-                width="24"
-                height="24"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="#FEFEFE"
                 xmlns="http://www.w3.org/2000/svg"
@@ -167,12 +378,12 @@ export default function AudioPlayerModal({
               </svg>
             </button>
 
-            {/* Play / Pause Toggle (Component 13) */}
+            {/* Play / Pause Toggle */}
             <button
               type="button"
               aria-label={isPlaying ? "Pause" : "Play"}
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-sm border border-white/40 flex items-center justify-center hover:bg-white/40 active:scale-95 transition-all text-white shadow-lg"
+              onClick={handlePlayPause}
+              className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] hover:brightness-110 active:scale-95 border border-white/40 flex items-center justify-center transition-all text-white shadow-lg cursor-pointer"
             >
               {isPlaying ? (
                 <svg
@@ -198,16 +409,17 @@ export default function AudioPlayerModal({
               )}
             </button>
 
-            {/* Next Track / Forward */}
+            {/* Forward 10s */}
             <button
               type="button"
-              aria-label="Next"
-              onClick={() => setProgressPercent(100)}
-              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all text-white"
+              aria-label="Forward"
+              onClick={handleForward}
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all text-white cursor-pointer"
+              title="Forward"
             >
               <svg
-                width="24"
-                height="24"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="#FEFEFE"
                 xmlns="http://www.w3.org/2000/svg"
@@ -229,10 +441,23 @@ export default function AudioPlayerModal({
           <div className="w-full flex items-center justify-between gap-2 h-11">
             {/* Left: Avatar & Channel Info */}
             <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${briefing.channelAvatarColor} ring-1 ring-white/30 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm`}
-              >
-                {briefing.channelInitials}
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-white/20 bg-slate-800 relative shadow-sm">
+                {briefing.channelAvatar && !avatarError ? (
+                  <Image
+                    src={briefing.channelAvatar}
+                    alt={briefing.channelName}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-full bg-gradient-to-tr ${briefing.channelAvatarColor || "from-purple-600 to-indigo-600"} flex items-center justify-center text-xs font-bold text-white`}
+                  >
+                    {briefing.channelInitials || briefing.channelName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col justify-center min-w-0">
                 <span className="text-base font-semibold text-white truncate font-['Lato',sans-serif] -my-0.5">
@@ -249,10 +474,7 @@ export default function AudioPlayerModal({
               {/* Download Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setIsDownloaded(true);
-                  setTimeout(() => setIsDownloaded(false), 2500);
-                }}
+                onClick={handleDownload}
                 title={isDownloaded ? "Downloaded!" : "Download Audio"}
                 className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${
                   isDownloaded
