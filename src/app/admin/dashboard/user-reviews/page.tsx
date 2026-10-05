@@ -73,7 +73,8 @@ interface Review {
   id: number | string;
   name: string;
   subtitle: string;
-  avatar: string; // initials
+  avatar: string; // initials fallback
+  avatarUrl?: string; // real user profile image
   rating: number;
   summaryTag: string;
   review: string;
@@ -360,9 +361,21 @@ function ReviewCard({
         {/* User */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div
-            className={`w-10 h-10 rounded-full bg-gradient-to-tr ${avatarColors[colorIdx]} flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md border border-white/20`}
+            className={`w-10 h-10 rounded-full bg-gradient-to-tr ${avatarColors[colorIdx]} flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md border border-white/20 overflow-hidden relative`}
           >
-            {review.avatar}
+            {review.avatarUrl ? (
+              <img
+                src={review.avatarUrl}
+                alt={review.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                  const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                  if (nextSpan) nextSpan.classList.remove("hidden");
+                }}
+              />
+            ) : null}
+            <span className={review.avatarUrl ? "hidden" : ""}>{review.avatar}</span>
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="font-['Lato'] font-semibold text-[15px] sm:text-[16px] leading-[150%] text-white truncate">
@@ -438,6 +451,7 @@ export default function UserReviewsPage() {
               name: r.user_name || "User",
               subtitle: r.subtitle || r.briefing_title || "Platform Review",
               avatar: (r.user_name || "U").slice(0, 2).toUpperCase(),
+              avatarUrl: r.user_avatar || r.user_avatar_url || r.user?.avatar_url || "",
               rating: r.rating || 5,
               summaryTag: r.summary_tag || "Great summary",
               review: r.thoughts || "No comment provided.",

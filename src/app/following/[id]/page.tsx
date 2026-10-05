@@ -189,12 +189,23 @@ export default function ChannelDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const isMotiversity = resolvedParams.id?.toLowerCase().includes("motiversity");
-  const [channel, setChannel] = useState<ChannelInfo>(
-    isMotiversity ? initialMotiversityChannel : initialTechInsightsChannel
-  );
-  const [videos, setVideos] = useState<ChannelVideoItem[]>(initialChannelVideos);
-  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const initialHandle = resolvedParams.id
+    ? resolvedParams.id.startsWith("@")
+      ? resolvedParams.id
+      : `@${resolvedParams.id}`
+    : "@creator";
+
+  const [channel, setChannel] = useState<ChannelInfo>({
+    name: initialHandle.replace(/^@/, "").replace(/-/g, " "),
+    handle: initialHandle,
+    avatar: "",
+    videoCount: "",
+    subscriberCount: "",
+    description: "",
+    isFollowing: true,
+  });
+  const [videos, setVideos] = useState<ChannelVideoItem[]>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [activePage, setActivePage] = useState(1);
   const [itemsPerPage] = useState(9);
   const [selectedBriefing, setSelectedBriefing] = useState<BriefingItem | null>(null);

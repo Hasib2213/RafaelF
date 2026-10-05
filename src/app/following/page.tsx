@@ -174,7 +174,8 @@ function mapBackendCreator(c: any): Creator {
 }
 
 export default function FollowingPage() {
-  const [creators, setCreators] = useState<Creator[]>(initialCreators);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [previewCreator, setPreviewCreator] = useState<Creator | null>(null);
   const [channelUrl, setChannelUrl] = useState("");
   const [isAddingCreator, setIsAddingCreator] = useState(false);
@@ -188,18 +189,41 @@ export default function FollowingPage() {
   const filterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchCreators = async () => {
+      setIsLoading(true);
       try {
-        const res = await creatorsApi.list();
-        const list = Array.isArray(res) ? res : res.results || [];
-        if (list.length > 0) {
+        let list: any[] = [];
+        try {
+          const followRes = await creatorsApi.getFollowing();
+          const followList = Array.isArray(followRes) ? followRes : (followRes as any)?.results || [];
+          if (followList && followList.length > 0) {
+            list = followList;
+          }
+        } catch {
+          // Fallback to general creators list
+        }
+
+        if (list.length === 0) {
+          const res = await creatorsApi.list();
+          list = Array.isArray(res) ? res : res.results || [];
+        }
+
+        if (isMounted) {
           setCreators(list.map(mapBackendCreator));
         }
       } catch (err) {
         console.error("Failed to fetch creators:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     fetchCreators();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -568,19 +592,58 @@ export default function FollowingPage() {
             </div>
           </section>
 
-          {/* 3. Creators Grid (Figma Desktop - 45: Frame 2147239912: 3 rows x 2 columns = 6 cards, height 748px) */}
-          <section className="w-full grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {displayedCreators.map((creator) => (
-              <CreatorCard
-                key={creator.id}
-                creator={creator}
-                onUnfollow={handleConfirmUnfollow}
-                onFollow={handleFollow}
-                onExplore={handleExplore}
-                onRequestUnfollow={(target) => setUnfollowTarget(target)}
-              />
-            ))}
-          </section>
+          {/* 3. Creators Grid */}
+          {isLoading ? (
+            <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="w-full max-w-[566px] min-h-[236px] rounded-2xl p-4 flex flex-row items-start gap-4 border border-white/10 [background:linear-gradient(0deg,#2B2A7D,#2B2A7D),linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] animate-pulse"
+                >
+                  <div className="w-16 h-16 rounded-full bg-white/10 shrink-0" />
+                  <div className="flex-1 flex flex-col gap-3 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2">
+                        <div className="h-5 w-36 bg-white/20 rounded-md" />
+                        <div className="h-4 w-24 bg-white/10 rounded-md" />
+                      </div>
+                      <div className="h-7 w-24 bg-white/10 rounded-lg" />
+                    </div>
+                    <div className="h-4 w-full bg-white/10 rounded-md" />
+                    <div className="h-4 w-3/4 bg-white/10 rounded-md" />
+                    <div className="flex gap-4 pt-1">
+                      <div className="h-4 w-20 bg-white/10 rounded" />
+                      <div className="h-4 w-24 bg-white/10 rounded" />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <div className="flex-1 h-11 bg-white/15 rounded-lg" />
+                      <div className="w-36 h-11 bg-white/10 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayedCreators.length > 0 ? (
+            <section className="w-full grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {displayedCreators.map((creator) => (
+                <CreatorCard
+                  key={creator.id}
+                  creator={creator}
+                  onUnfollow={handleConfirmUnfollow}
+                  onFollow={handleFollow}
+                  onExplore={handleExplore}
+                  onRequestUnfollow={(target) => setUnfollowTarget(target)}
+                />
+              ))}
+            </section>
+          ) : (
+            <div className="w-full py-16 rounded-2xl border border-white/10 [background:linear-gradient(0deg,#2B2A7D,#2B2A7D),linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col items-center justify-center gap-3 text-center px-4">
+              <h3 className="text-xl font-semibold text-white">No creators followed yet</h3>
+              <p className="text-sm text-[#D0D0D0] max-w-md">
+                Paste a YouTube channel or video link above to follow your favorite creators and start receiving AI-powered summaries.
+              </p>
+            </div>
+          )}
 
           {/* 4. Pagination Footer (Figma Pagination Footer: 1128px x 40px) */}
           <footer className="w-full max-w-[1128px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 pb-12 border-t border-white/10">
@@ -588,10 +651,10 @@ export default function FollowingPage() {
             <div className="flex items-center gap-2.5 text-white text-sm font-medium font-['Lato',sans-serif]">
               <span>Showing</span>
               <div className="h-10 px-2 rounded-md bg-white/20 border border-white/10 flex items-center gap-1 cursor-pointer hover:bg-white/25 transition-all">
-                <span>{previewCreator ? 6 : itemsPerPage}</span>
+                <span>{previewCreator ? 6 : Math.min(itemsPerPage, creators.length)}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#B5C8DB]" />
               </div>
-              <span>of {creators.length > 24 ? creators.length : 24} items</span>
+              <span>of {creators.length} items</span>
             </div>
 
             {/* Right Pagination Buttons (Figma specs: Previous, 1, 2, 3, ..., 10, Next) */}

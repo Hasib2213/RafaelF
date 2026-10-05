@@ -91,11 +91,13 @@ const initialFeedbacks: FeedbackCardData[] = [
 
 export default function MyFeedbackPage() {
   const { user } = useAuth();
-  const [feedbacks, setFeedbacks] = useState<FeedbackCardData[]>(initialFeedbacks);
+  const [feedbacks, setFeedbacks] = useState<FeedbackCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     async function loadFeedbacks() {
+      setIsLoading(true);
       try {
         const res = await feedbackApi.getMyFeedback();
         if (isMounted && Array.isArray(res) && res.length > 0) {
@@ -112,9 +114,15 @@ export default function MyFeedbackPage() {
             channelName: fb.creator_name || "Curio Creator",
           }));
           setFeedbacks(mapped);
+        } else if (isMounted) {
+          setFeedbacks([]);
         }
       } catch {
-        // Fallback to initialFeedbacks
+        if (isMounted) setFeedbacks([]);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
     loadFeedbacks();
@@ -179,16 +187,30 @@ export default function MyFeedbackPage() {
             </p>
           </section>
 
-          {/* Feedback Cards Grid (Figma Frames 2147239921 & 2147239922: 3 cols x 2 rows, gap 24px) */}
-          <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 place-items-center">
-            {feedbacks.map((item) => (
-              <MyFeedbackCard
-                key={item.id}
-                item={item}
-                onPlayAudio={handlePlayAudio}
-              />
-            ))}
-          </section>
+          {/* Feedback Cards Grid */}
+          {isLoading ? (
+            <div className="w-full py-20 flex flex-col items-center justify-center gap-3">
+              <div className="w-9 h-9 border-4 border-[#36C1FB] border-t-transparent rounded-full animate-spin" />
+              <p className="text-white/70 text-sm">Loading your feedback history...</p>
+            </div>
+          ) : feedbacks.length > 0 ? (
+            <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 place-items-center">
+              {feedbacks.map((item) => (
+                <MyFeedbackCard
+                  key={item.id}
+                  item={item}
+                  onPlayAudio={handlePlayAudio}
+                />
+              ))}
+            </section>
+          ) : (
+            <div className="w-full py-16 rounded-2xl border border-white/10 [background:linear-gradient(0deg,#2B2A7D,#2B2A7D),linear-gradient(90deg,rgba(43,127,255,0.2)_0%,rgba(79,57,246,0.2)_100%)] flex flex-col items-center justify-center gap-2 text-center px-4">
+              <h3 className="text-lg font-semibold text-white">No feedback submitted yet</h3>
+              <p className="text-sm text-[#D0D0D0] max-w-sm">
+                Rate and submit feedback on video briefings from your Feed to see your history here.
+              </p>
+            </div>
+          )}
         </main>
 
         {/* Desktop - 55 Footer (1440px x 501px bottom footer) */}

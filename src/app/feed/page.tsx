@@ -318,14 +318,12 @@ export default function FeedPage() {
         setBriefings(res.results.map(mapApiBriefingToItem));
       } else if (res && Array.isArray(res) && (res as any).length > 0) {
         setBriefings((res as any).map(mapApiBriefingToItem));
-      } else if (!query.trim()) {
-        setBriefings(initialBriefings.filter((i) => i.timeframe === timeframe));
       } else {
         setBriefings([]);
       }
     } catch (err) {
       console.error("Failed to load briefings:", err);
-      setBriefings(initialBriefings.filter((i) => i.timeframe === timeframe));
+      setBriefings([]);
     } finally {
       setIsLoadingBriefings(false);
     }
@@ -390,7 +388,7 @@ export default function FeedPage() {
         hash.includes("62") ||
         hash.includes("improve")
       ) {
-        handleOpenImprove(briefings[0] || initialBriefings[0]);
+        handleOpenImprove(briefings[0] || null);
       } else if (
         search.includes("rate") ||
         search.includes("feedback") ||
@@ -400,7 +398,7 @@ export default function FeedPage() {
         hash.includes("feedback") ||
         hash.includes("61")
       ) {
-        handleOpenFeedback(briefings[0] || initialBriefings[0]);
+        handleOpenFeedback(briefings[0] || null);
       }
     }
   }, []);
@@ -445,7 +443,7 @@ export default function FeedPage() {
               {/* Desktop - 60 Rate Us Modal Trigger */}
               <button
                 type="button"
-                onClick={() => handleOpenFeedback(briefings[0] || initialBriefings[0])}
+                onClick={() => handleOpenFeedback(briefings[0] || null)}
                 className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] hover:brightness-110 active:scale-95 transition-all text-white text-base font-semibold select-none shadow-md shadow-purple-900/30 shrink-0 cursor-pointer"
               >
                 <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
