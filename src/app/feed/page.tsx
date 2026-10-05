@@ -335,6 +335,20 @@ export default function FeedPage() {
     fetchBriefings(activeTab, searchQuery);
   }, [activeTab, searchQuery]);
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      try {
+        await briefingsApi.triggerSync();
+      } catch {
+        // Continue even if sync trigger fails
+      }
+      await fetchBriefings(activeTab, searchQuery);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleOpenFeedback = (briefing?: BriefingItem | null) => {
     setActiveFeedbackBriefing(briefing || selectedBriefing || briefings[0] || initialBriefings[0]);
     setSelectedBriefing(null);
@@ -390,12 +404,6 @@ export default function FeedPage() {
       }
     }
   }, []);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchBriefings(activeTab, searchQuery);
-    setIsRefreshing(false);
-  };
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 

@@ -393,6 +393,10 @@ export const briefingsApi = {
   listen: async (id: string): Promise<{ message: string; listens_count: number }> => {
     return apiClient(`/api/briefings/${id}/listen/`, { method: "POST" });
   },
+
+  triggerSync: async (): Promise<{ message: string }> => {
+    return apiClient("/api/briefings/sync/", { method: "POST" });
+  },
 };
 
 // Creators API
