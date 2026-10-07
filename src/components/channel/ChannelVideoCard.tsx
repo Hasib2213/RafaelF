@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Download, Check, Play, Bookmark } from "lucide-react";
+import { Download, Check, Play, Bookmark, Loader2 } from "lucide-react";
+import { downloadAudioFile } from "@/lib/utils";
 import { libraryApi } from "@/lib/api";
 
 export interface ChannelVideoItem {
@@ -27,6 +28,7 @@ interface ChannelVideoCardProps {
 
 export default function ChannelVideoCard({ video, onPlayAudio }: ChannelVideoCardProps) {
   const [downloaded, setDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isSaved, setIsSaved] = useState(video.isSaved ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -36,10 +38,21 @@ export default function ChannelVideoCard({ video, onPlayAudio }: ChannelVideoCar
     setIsSaved(video.isSaved ?? false);
   }, [video.isSaved, video.id]);
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+    if (isDownloading || downloaded || !video.audioUrl) return;
+    setIsDownloading(true);
+    try {
+      const success = await downloadAudioFile(video.audioUrl, video.title);
+      if (success) {
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to download audio:", err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleBookmark = async (e: React.MouseEvent) => {
@@ -194,15 +207,30 @@ export default function ChannelVideoCard({ video, onPlayAudio }: ChannelVideoCar
           <button
             type="button"
             onClick={handleDownload}
-            title={downloaded ? "Downloaded!" : "Download Audio Briefing"}
+            disabled={isDownloading || !video.audioUrl}
+            title={
+              !video.audioUrl
+                ? "No audio available"
+                : isDownloading
+                ? "Downloading..."
+                : downloaded
+                ? "Downloaded!"
+                : "Download Audio Briefing"
+            }
             aria-label="Download Audio"
-            className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer select-none shrink-0 ${
+            className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all select-none shrink-0 ${
               downloaded
                 ? "bg-emerald-500/80 text-white"
-                : "bg-white/20 hover:bg-white/30 active:scale-95 text-white border border-white/10"
+                : isDownloading
+                ? "bg-purple-600/60 text-white cursor-wait"
+                : !video.audioUrl
+                ? "bg-white/10 text-white/40 cursor-not-allowed border border-white/5"
+                : "bg-white/20 hover:bg-white/30 active:scale-95 text-white border border-white/10 cursor-pointer"
             }`}
           >
-            {downloaded ? (
+            {isDownloading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : downloaded ? (
               <Check className="w-5 h-5 stroke-[2.5]" />
             ) : (
               <Download className="w-5 h-5 text-white" strokeWidth={1.8} />

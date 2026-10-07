@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Download, Check, Play, Bookmark } from "lucide-react";
+import { Download, Check, Play, Bookmark, Loader2 } from "lucide-react";
+import { downloadAudioFile } from "@/lib/utils";
 
 export interface LibraryItem {
   id: string;
@@ -28,15 +29,27 @@ interface LibraryCardProps {
 
 export default function LibraryCard({ item, onPlayAudio, onRemove }: LibraryCardProps) {
   const [downloaded, setDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+    if (isDownloading || downloaded || !item.audioUrl) return;
+    setIsDownloading(true);
+    try {
+      const success = await downloadAudioFile(item.audioUrl, item.title);
+      if (success) {
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to download audio:", err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleToggleSave = (e: React.MouseEvent) => {
@@ -182,15 +195,30 @@ export default function LibraryCard({ item, onPlayAudio, onRemove }: LibraryCard
           <button
             type="button"
             onClick={handleDownload}
-            title={downloaded ? "Downloaded!" : "Download Audio Briefing"}
+            disabled={isDownloading || !item.audioUrl}
+            title={
+              !item.audioUrl
+                ? "No audio available"
+                : isDownloading
+                ? "Downloading..."
+                : downloaded
+                ? "Downloaded!"
+                : "Download Audio Briefing"
+            }
             aria-label="Download Audio"
-            className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all cursor-pointer select-none shrink-0 ${
+            className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all select-none shrink-0 ${
               downloaded
                 ? "bg-emerald-500/80 text-white"
-                : "bg-white/20 hover:bg-white/30 active:scale-95 text-white border border-white/10"
+                : isDownloading
+                ? "bg-purple-600/60 text-white cursor-wait"
+                : !item.audioUrl
+                ? "bg-white/10 text-white/40 cursor-not-allowed border border-white/5"
+                : "bg-white/20 hover:bg-white/30 active:scale-95 text-white border border-white/10 cursor-pointer"
             }`}
           >
-            {downloaded ? (
+            {isDownloading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : downloaded ? (
               <Check className="w-5 h-5 stroke-[2.5]" />
             ) : (
               <Download className="w-5 h-5 text-white" strokeWidth={1.8} />

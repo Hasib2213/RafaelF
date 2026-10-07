@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { BriefingItem } from "./BriefingCard";
-import { Check, Volume2, Sparkles } from "lucide-react";
+import { Check, Volume2, Sparkles, Loader2, Download } from "lucide-react";
 import { libraryApi } from "@/lib/api";
+import { downloadAudioFile } from "@/lib/utils";
 
 interface AudioPlayerModalProps {
   briefing: BriefingItem;
@@ -30,6 +31,7 @@ export default function AudioPlayerModal({
   const [currentTimeStr, setCurrentTimeStr] = useState("00:00");
   const [durationStr, setDurationStr] = useState(briefing.duration || "08:25");
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasAudioUrl, setHasAudioUrl] = useState(Boolean(briefing.audioUrl?.trim()));
@@ -234,18 +236,20 @@ export default function AudioPlayerModal({
     }
   };
 
-  const handleDownload = () => {
-    if (briefing.audioUrl) {
-      const a = document.createElement("a");
-      a.href = briefing.audioUrl;
-      a.download = `${briefing.title.slice(0, 30)}.mp3`;
-      a.target = "_blank";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+  const handleDownload = async () => {
+    if (isDownloading || isDownloaded || !briefing.audioUrl) return;
+    setIsDownloading(true);
+    try {
+      const success = await downloadAudioFile(briefing.audioUrl, briefing.title);
+      if (success) {
+        setIsDownloaded(true);
+        setTimeout(() => setIsDownloaded(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to download audio:", err);
+    } finally {
+      setIsDownloading(false);
     }
-    setIsDownloaded(true);
-    setTimeout(() => setIsDownloaded(false), 2500);
   };
 
   const handleToggleSave = async () => {
@@ -475,31 +479,32 @@ export default function AudioPlayerModal({
               <button
                 type="button"
                 onClick={handleDownload}
-                title={isDownloaded ? "Downloaded!" : "Download Audio"}
-                className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${
+                disabled={isDownloading || !briefing.audioUrl}
+                title={
+                  !briefing.audioUrl
+                    ? "No audio available"
+                    : isDownloading
+                    ? "Downloading..."
+                    : isDownloaded
+                    ? "Downloaded!"
+                    : "Download Audio"
+                }
+                className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all select-none ${
                   isDownloaded
                     ? "bg-emerald-500/80 text-white"
-                    : "bg-white/20 hover:bg-white/30 text-white active:scale-95"
+                    : isDownloading
+                    ? "bg-purple-600/60 text-white cursor-wait"
+                    : !briefing.audioUrl
+                    ? "bg-white/10 text-white/40 cursor-not-allowed"
+                    : "bg-white/20 hover:bg-white/30 text-white active:scale-95 cursor-pointer"
                 }`}
               >
-                {isDownloaded ? (
+                {isDownloading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isDownloaded ? (
                   <Check className="w-5 h-5 stroke-[3]" />
                 ) : (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M12 3V15M12 15L7.5 10.5M12 15L16.5 10.5M4 17V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V17"
-                      stroke="#FEFEFE"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <Download className="w-5 h-5 text-white" strokeWidth={1.8} />
                 )}
               </button>
 

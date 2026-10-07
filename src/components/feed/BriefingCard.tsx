@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Download, Sparkles, Check, Play, BookOpen, Volume2 } from "lucide-react";
+import { Download, Sparkles, Check, Play, BookOpen, Volume2, Loader2 } from "lucide-react";
 import { libraryApi, briefingsApi } from "@/lib/api";
+import { downloadAudioFile } from "@/lib/utils";
 
 export interface BriefingItem {
   id: string;
@@ -30,15 +31,27 @@ interface BriefingCardProps {
 
 export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProps) {
   const [downloaded, setDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(briefing.isSaved ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+    if (isDownloading || downloaded || !briefing.audioUrl) return;
+    setIsDownloading(true);
+    try {
+      const success = await downloadAudioFile(briefing.audioUrl, briefing.title);
+      if (success) {
+        setDownloaded(true);
+        setTimeout(() => setDownloaded(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to download audio:", err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleToggleSave = async (e: React.MouseEvent) => {
@@ -188,32 +201,33 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
           <button
             type="button"
             onClick={handleDownload}
-            title={downloaded ? "Downloaded!" : "Download Briefing Audio"}
+            disabled={isDownloading || !briefing.audioUrl}
+            title={
+              !briefing.audioUrl
+                ? "No audio available"
+                : isDownloading
+                ? "Downloading..."
+                : downloaded
+                ? "Downloaded!"
+                : "Download Briefing Audio"
+            }
             aria-label="Download Summary"
             className={`w-[44px] h-[44px] rounded-lg flex items-center justify-center transition-all select-none shrink-0 ${
               downloaded
                 ? "bg-emerald-500/80 text-white"
-                : "bg-white/20 hover:bg-white/30 text-white active:scale-95"
+                : isDownloading
+                ? "bg-purple-600/60 text-white cursor-wait"
+                : !briefing.audioUrl
+                ? "bg-white/10 text-white/40 cursor-not-allowed"
+                : "bg-white/20 hover:bg-white/30 text-white active:scale-95 cursor-pointer"
             }`}
           >
-            {downloaded ? (
+            {isDownloading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : downloaded ? (
               <Check className="w-5 h-5 stroke-[3]" />
             ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M12 3V15M12 15L7.5 10.5M12 15L16.5 10.5M4 17V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V17"
-                  stroke="#FEFEFE"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Download className="w-5 h-5 text-white" strokeWidth={1.8} />
             )}
           </button>
 
