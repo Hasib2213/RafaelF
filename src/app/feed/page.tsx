@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import FeedFollowingSidebar from "@/components/feed/FeedFollowingSidebar";
@@ -15,6 +16,28 @@ import { useAuth } from "@/context/AuthContext";
 import { briefingsApi } from "@/lib/api";
 import { Briefing } from "@/lib/types/api";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
+function BriefingParamHandler({
+  briefings,
+  onSelectBriefing,
+}: {
+  briefings: BriefingItem[];
+  onSelectBriefing: (b: BriefingItem) => void;
+}) {
+  const searchParams = useSearchParams();
+  const briefingId = searchParams.get("briefing");
+
+  useEffect(() => {
+    if (briefingId && briefings.length > 0) {
+      const target = briefings.find((b) => b.id === briefingId);
+      if (target) {
+        onSelectBriefing(target);
+      }
+    }
+  }, [briefingId, briefings, onSelectBriefing]);
+
+  return null;
+}
 
 function mapApiBriefingToItem(b: any): BriefingItem {
   return {
@@ -410,6 +433,9 @@ export default function FeedPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-[#0F172A] text-white flex flex-row overflow-x-hidden font-['Lato',sans-serif]">
+      <Suspense fallback={null}>
+        <BriefingParamHandler briefings={briefings} onSelectBriefing={setSelectedBriefing} />
+      </Suspense>
       {/* Left Sidebar (Figma: Side Panel - width 240px, responsive drawer on mobile) */}
       <FeedSidebar
         mobileOpen={mobileSidebarOpen}

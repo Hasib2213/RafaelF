@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { X, CheckCircle2 } from "lucide-react";
 
 import { notificationsApi } from "@/lib/api";
@@ -13,6 +14,7 @@ export interface NotificationItem {
   body: string;
   avatarUrl?: string;
   avatar_url?: string;
+  link?: string;
   unread?: boolean;
   is_read?: boolean;
 }
@@ -49,6 +51,8 @@ export default function NotificationModal({
   notifications = DEFAULT_NOTIFICATIONS,
   onRefresh,
 }: NotificationModalProps) {
+  const router = useRouter();
+
   // ESC key listener & body scroll lock
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,6 +90,10 @@ export default function NotificationModal({
       } catch (err) {
         console.error("Failed to mark notification as read:", err);
       }
+    }
+    if (item.link) {
+      onClose();
+      router.push(item.link);
     }
   };
 

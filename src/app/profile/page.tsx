@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import Footer from "@/components/Footer";
-import { Camera, Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Camera, Trash2, Eye, EyeOff, Check, AlertCircle, Loader2, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authApi, resolveAvatarUrl } from "@/lib/api";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -14,21 +14,21 @@ export default function ProfilePage() {
 
   // Initial profile data
   const initialProfile = {
-    firstName: user?.first_name || "Abir",
-    lastName: user?.last_name || "Hossain",
-    phone: user?.phone || "01498978089049",
-    address: user?.address || "Dhaka, Bangladesh",
-    company: user?.company || "Orange Ltd",
-    position: user?.position || "Product Manager",
-    avatar:
-      resolveAvatarUrl(user?.avatar_url || user?.avatar) ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
+    firstName: user?.first_name || "",
+    lastName: user?.last_name || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    company: user?.company || "",
+    position: user?.position || "",
+    avatar: resolveAvatarUrl(user?.avatar_url || user?.avatar) || "",
   };
 
   // Form states
   const [profile, setProfile] = useState(initialProfile);
   const [tempProfile, setTempProfile] = useState(initialProfile);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   // Password states
   const [oldPassword, setOldPassword] = useState("");
@@ -64,9 +64,7 @@ export default function ProfilePage() {
         setIsLoadingProfile(true);
         const data = await authApi.getProfile();
         if (isMounted && data) {
-          const avatar =
-            resolveAvatarUrl(data.avatar_url || data.avatar) ||
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
+          const avatar = resolveAvatarUrl(data.avatar_url || data.avatar) || "";
           const loaded = {
             firstName: data.first_name || "",
             lastName: data.last_name || "",
@@ -78,14 +76,13 @@ export default function ProfilePage() {
           };
           setProfile(loaded);
           setTempProfile(loaded);
+          setAvatarLoadError(false);
           setUser(data);
         }
       } catch (err: any) {
         // Fallback to auth context or default
         if (user) {
-          const avatar =
-            resolveAvatarUrl(user.avatar_url || user.avatar) ||
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
+          const avatar = resolveAvatarUrl(user.avatar_url || user.avatar) || "";
           const fallback = {
             firstName: user.first_name || "",
             lastName: user.last_name || "",
@@ -97,6 +94,7 @@ export default function ProfilePage() {
           };
           setProfile(fallback);
           setTempProfile(fallback);
+          setAvatarLoadError(false);
         }
       } finally {
         if (isMounted) setIsLoadingProfile(false);
@@ -127,19 +125,21 @@ export default function ProfilePage() {
 
         updated = await authApi.updateProfile(fd);
       } else {
-        updated = await authApi.updateProfile({
+        const payload: any = {
           first_name: tempProfile.firstName,
           last_name: tempProfile.lastName,
           phone: tempProfile.phone,
           address: tempProfile.address,
           company: tempProfile.company,
           position: tempProfile.position,
-        });
+        };
+        if (removeAvatar) {
+          payload.remove_avatar = true;
+        }
+        updated = await authApi.updateProfile(payload);
       }
 
-      const avatar =
-        resolveAvatarUrl(updated.avatar_url || updated.avatar) ||
-        tempProfile.avatar;
+      const avatar = resolveAvatarUrl(updated.avatar_url || updated.avatar) || "";
 
       const saved = {
         firstName: updated.first_name || tempProfile.firstName,
@@ -153,6 +153,8 @@ export default function ProfilePage() {
       setProfile(saved);
       setTempProfile(saved);
       setAvatarFile(null);
+      setRemoveAvatar(false);
+      setAvatarLoadError(false);
 
       // Immediately synchronize global AuthContext
       setUser(updated);
@@ -168,6 +170,11 @@ export default function ProfilePage() {
   const handleCancelProfile = () => {
     setTempProfile({ ...profile });
     setAvatarFile(null);
+    setRemoveAvatar(false);
+    setAvatarLoadError(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     showToast("Profile changes reverted.");
   };
 
@@ -213,11 +220,32 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (file) {
       setAvatarFile(file);
+      setRemoveAvatar(false);
       const objectUrl = URL.createObjectURL(file);
       setTempProfile((prev) => ({ ...prev, avatar: objectUrl }));
+      setAvatarLoadError(false);
       showToast("New profile picture selected. Click 'Save Changes' to apply.");
     }
   };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setTempProfile((prev) => ({ ...prev, avatar: "" }));
+    setRemoveAvatar(true);
+    setAvatarLoadError(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    showToast("Profile picture removed. Click 'Save Changes' to apply.");
+  };
+
+  const userInitials =
+    (
+      (tempProfile.firstName ? tempProfile.firstName[0] : "") +
+      (tempProfile.lastName ? tempProfile.lastName[0] : "")
+    ).toUpperCase() || (user?.email ? user.email.slice(0, 2).toUpperCase() : "");
+
+  const avatarSrc = resolveAvatarUrl(tempProfile.avatar) || tempProfile.avatar;
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -262,28 +290,47 @@ export default function ProfilePage() {
 
                 {/* Avatar Frame with Camera Edit Badge (Figma Frame 2147225842 & fi_45010) */}
                 <div className="relative w-[234px] h-[234px]">
-                  <div className="w-[234px] h-[234px] rounded-full border border-white overflow-hidden shadow-xl bg-slate-800">
-                    <img
-                      src={resolveAvatarUrl(tempProfile.avatar) || tempProfile.avatar}
-                      alt="Profile Avatar"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80";
-                      }}
-                    />
+                  <div className="w-[234px] h-[234px] rounded-full border-2 border-white/40 overflow-hidden shadow-2xl bg-gradient-to-tr from-[#2563EB] to-[#A842D4] flex items-center justify-center select-none">
+                    {avatarSrc && !avatarLoadError ? (
+                      <img
+                        src={avatarSrc}
+                        alt="Profile Avatar"
+                        className="w-full h-full object-cover"
+                        onError={() => setAvatarLoadError(true)}
+                      />
+                    ) : userInitials ? (
+                      <span className="text-6xl font-bold font-['Lato',sans-serif] text-white tracking-wider drop-shadow-md">
+                        {userInitials}
+                      </span>
+                    ) : (
+                      <UserIcon className="w-24 h-24 text-white/80" />
+                    )}
                   </div>
 
-                  {/* Camera Badge Button (Figma fi_45010: 48.17px x 41.45px, left 171px, top 175px on bottom corner) */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label="Change profile picture"
-                    title="Change profile picture"
-                    className="absolute right-2 bottom-2 w-[48px] h-[42px] bg-white/40 hover:bg-white/60 active:scale-95 backdrop-blur-md rounded border border-white/30 flex items-center justify-center transition-all cursor-pointer shadow-lg group"
-                  >
-                    <Camera className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-                  </button>
+                  {/* Action Badges: Remove (when photo exists) & Upload */}
+                  <div className="absolute right-2 bottom-2 flex items-center gap-2">
+                    {Boolean(avatarSrc && !avatarLoadError) && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        aria-label="Remove profile picture"
+                        title="Remove profile picture"
+                        className="w-[42px] h-[42px] bg-red-500/60 hover:bg-red-500/85 active:scale-95 backdrop-blur-md rounded-lg border border-red-300/40 flex items-center justify-center transition-all cursor-pointer shadow-lg group"
+                      >
+                        <Trash2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      aria-label="Change profile picture"
+                      title="Upload new profile picture"
+                      className="w-[48px] h-[42px] bg-white/40 hover:bg-white/60 active:scale-95 backdrop-blur-md rounded-lg border border-white/30 flex items-center justify-center transition-all cursor-pointer shadow-lg group"
+                    >
+                      <Camera className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+                    </button>
+                  </div>
 
                   {/* Hidden File Input */}
                   <input

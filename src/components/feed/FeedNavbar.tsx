@@ -7,6 +7,7 @@ import { Search, Bell, Menu } from "lucide-react";
 import NotificationModal from "./NotificationModal";
 import { useAuth } from "@/context/AuthContext";
 import { notificationsApi, resolveAvatarUrl } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface FeedNavbarProps {
   onSearch?: (query: string) => void;
@@ -48,6 +49,30 @@ export default function FeedNavbar({
 
   useEffect(() => {
     fetchNotifications();
+
+    // Subscribe to real-time notification changes via Supabase Realtime
+    const channel = supabase
+      .channel("realtime_notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "accounts_notification",
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    // 60s periodic polling fallback for network resilience
+    const interval = setInterval(fetchNotifications, 60000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [user]);
 
   const displayName = user
