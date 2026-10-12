@@ -108,106 +108,7 @@ const DEFAULT_ADMIN_INFO: AdminInfo = {
   position: "Product Manager",
 };
 
-const INITIAL_SUSPENDED_USERS: SuspendedUser[] = [
-  {
-    id: "susp-1",
-    dateTime: "08.08.2024 - 10:15 AM",
-    userType: "Free",
-    name: "Devon Lane",
-    reason: "Spamming in forums",
-    email: "devon.lane@gmail.com",
-  },
-  {
-    id: "susp-2",
-    dateTime: "07.08.2024 - 03:45 PM",
-    userType: "Free",
-    name: "Robert Fox",
-    reason: "Fraudulent chargeback",
-    email: "robert.fox@yahoo.com",
-  },
-  {
-    id: "susp-3",
-    dateTime: "05.08.2024 - 09:20 AM",
-    userType: "Free",
-    name: "Jenny Wilson",
-    reason: "Terms of service violation",
-    email: "jenny.wilson@outlook.com",
-  },
-  {
-    id: "susp-4",
-    dateTime: "03.08.2024 - 01:10 PM",
-    userType: "Free",
-    name: "Cody Fisher",
-    reason: "Suspicious API rate limit",
-    email: "cody.fisher@hotmail.com",
-  },
-  {
-    id: "susp-5",
-    dateTime: "01.08.2024 - 11:30 AM",
-    userType: "Free",
-    name: "Jane Cooper",
-    reason: "Abusive language report",
-    email: "jane.cooper@mail.com",
-  },
-  {
-    id: "susp-6",
-    dateTime: "30.07.2024 - 04:50 PM",
-    userType: "Free",
-    name: "Esther Howard",
-    reason: "Multiple failed login attacks",
-    email: "esther.howard@gmail.com",
-  },
-  {
-    id: "susp-7",
-    dateTime: "28.07.2024 - 02:15 PM",
-    userType: "Free",
-    name: "Cameron Williamson",
-    reason: "Bot activity detected",
-    email: "cameron.w@domain.com",
-  },
-  // Pro Members
-  {
-    id: "susp-8",
-    dateTime: "06.08.2024 - 08:30 AM",
-    userType: "Pro",
-    name: "Guy Hawkins",
-    reason: "Unauthorized script execution",
-    email: "guy.hawkins@techpro.io",
-  },
-  {
-    id: "susp-9",
-    dateTime: "04.08.2024 - 12:40 PM",
-    userType: "Pro",
-    name: "Kristin Watson",
-    reason: "Suspected account takeover",
-    email: "kristin.w@cloudcorp.com",
-  },
-  {
-    id: "susp-10",
-    dateTime: "02.08.2024 - 06:15 PM",
-    userType: "Pro",
-    name: "Leslie Alexander",
-    reason: "Disputed transaction",
-    email: "leslie.alex@prodev.net",
-  },
-  // Enterprise Members
-  {
-    id: "susp-11",
-    dateTime: "05.08.2024 - 02:00 PM",
-    userType: "Enterprise",
-    name: "Brooklyn Simmons",
-    reason: "Security compliance breach",
-    email: "b.simmons@enterprise.org",
-  },
-  {
-    id: "susp-12",
-    dateTime: "29.07.2024 - 10:00 AM",
-    userType: "Enterprise",
-    name: "Jerome Bell",
-    reason: "API quota abuse",
-    email: "jerome.bell@globalcorp.com",
-  },
-];
+const INITIAL_SUSPENDED_USERS: SuspendedUser[] = [];
 
 type TabType = "admin-info" | "suspended-users" | "admin-management";
 type MemberTier = "Free" | "Pro" | "Enterprise";
@@ -220,57 +121,7 @@ export interface AdminUser {
   status: "Active" | "Inactive";
 }
 
-const INITIAL_ADMIN_USERS: AdminUser[] = [
-  {
-    id: "admin-1",
-    name: "Rob Stark",
-    role: "Admin",
-    email: "robstark089@gmail.com",
-    status: "Active",
-  },
-  {
-    id: "admin-2",
-    name: "Jenny Wilson",
-    role: "Super Admin",
-    email: "jenny.wilson@curio.ai",
-    status: "Active",
-  },
-  {
-    id: "admin-3",
-    name: "Devon Lane",
-    role: "Editor",
-    email: "devon.lane@curio.ai",
-    status: "Active",
-  },
-  {
-    id: "admin-4",
-    name: "Cody Fisher",
-    role: "Manager",
-    email: "cody.fisher@curio.ai",
-    status: "Active",
-  },
-  {
-    id: "admin-5",
-    name: "Jane Cooper",
-    role: "Admin",
-    email: "jane.cooper@curio.ai",
-    status: "Active",
-  },
-  {
-    id: "admin-6",
-    name: "Esther Howard",
-    role: "Editor",
-    email: "esther.howard@curio.ai",
-    status: "Active",
-  },
-  {
-    id: "admin-7",
-    name: "Cameron Williamson",
-    role: "Admin",
-    email: "cameron.w@curio.ai",
-    status: "Active",
-  },
-];
+const INITIAL_ADMIN_USERS: AdminUser[] = [];
 
 const suspendedGridCols = "grid-cols-[180px_130px_140px_minmax(180px,1fr)_160px_72px_140px]";
 const adminGridCols = "grid-cols-[180px_160px_minmax(220px,1fr)_120px_130px]";
@@ -299,8 +150,8 @@ export default function AdminSettingsPage() {
 
   // Password state
   const [passwords, setPasswords] = useState<PasswordState>({
-    oldPassword: "jonsnow007",
-    newPassword: "••••••••••",
+    oldPassword: "",
+    newPassword: "",
   });
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -333,12 +184,12 @@ export default function AdminSettingsPage() {
         const profile = await authApi.getProfile();
         if (isMounted && profile) {
           setAdminInfo({
-            firstName: profile.first_name || "Abir",
-            lastName: profile.last_name || "Hossain",
-            phone: profile.phone || "01498978089049",
-            address: profile.address || "Dhaka, Bangladesh",
-            company: profile.company || "Orange Ltd",
-            position: profile.position || "Product Manager",
+            firstName: profile.first_name || "",
+            lastName: profile.last_name || "",
+            phone: profile.phone || "",
+            address: profile.address || "",
+            company: profile.company || "",
+            position: profile.position || "",
           });
           const resolved = resolveAvatarUrl(profile.avatar_url || profile.avatar);
           if (resolved) {
@@ -354,47 +205,44 @@ export default function AdminSettingsPage() {
         const res = await adminApi.getUsers();
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
-          if (list.length > 0) {
-            const suspended: SuspendedUser[] = list
-              .filter((u: any) => u.is_suspended)
-              .map((u: any) => ({
-                id: u.id,
-                dateTime: u.date_joined
-                  ? new Date(u.date_joined).toLocaleDateString("en-US", {
-                      month: "numeric",
-                      day: "numeric",
-                      year: "numeric",
-                    }) + " - 10:15 AM"
-                  : "08.08.2024 - 10:15 AM",
-                userType: (u.plan === "Pro"
-                  ? "Pro"
-                  : u.plan === "Enterprise"
-                  ? "Enterprise"
-                  : "Free") as MemberTier,
-                name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
-                reason: u.suspension_reason || "Account suspended by Admin",
-                email: u.email,
-              }));
-            if (suspended.length > 0) {
-              setSuspendedUsers(suspended);
-            }
+          const suspended: SuspendedUser[] = list
+            .filter((u: any) => u.is_suspended)
+            .map((u: any) => ({
+              id: u.id,
+              dateTime: u.date_joined
+                ? new Date(u.date_joined).toLocaleDateString("en-US", {
+                    month: "numeric",
+                    day: "numeric",
+                    year: "numeric",
+                  }) + " - 10:15 AM"
+                : "Recent",
+              userType: (u.plan === "Pro"
+                ? "Pro"
+                : u.plan === "Enterprise"
+                ? "Enterprise"
+                : "Free") as MemberTier,
+              name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+              reason: u.suspension_reason || "Account suspended by Admin",
+              email: u.email,
+            }));
+          setSuspendedUsers(suspended);
 
-            const admins: AdminUser[] = list
-              .filter((u: any) => u.role === "admin" || u.is_staff)
-              .map((u: any) => ({
-                id: u.id,
-                name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
-                role: u.is_superuser ? "Super Admin" : "Admin",
-                email: u.email,
-                status: u.is_active ? "Active" : "Inactive",
-              }));
-            if (admins.length > 0) {
-              setAdminUsers(admins);
-            }
-          }
+          const admins: AdminUser[] = list
+            .filter((u: any) => u.role === "admin" || u.is_staff)
+            .map((u: any) => ({
+              id: u.id,
+              name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+              role: u.is_superuser ? "Super Admin" : "Admin",
+              email: u.email,
+              status: u.is_active ? "Active" : "Inactive",
+            }));
+          setAdminUsers(admins);
         }
       } catch {
-        // keep fallback mock
+        if (isMounted) {
+          setSuspendedUsers([]);
+          setAdminUsers([]);
+        }
       }
     }
 

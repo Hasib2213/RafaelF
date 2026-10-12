@@ -243,6 +243,7 @@ export async function apiClient<T = any>(
     }
 
     let response = await fetch(url, {
+      cache: restOptions.cache ?? "no-store",
       ...restOptions,
       headers: requestHeaders,
     });
@@ -260,6 +261,7 @@ export async function apiClient<T = any>(
       if (newAccessToken) {
         requestHeaders.set("Authorization", `Bearer ${newAccessToken}`);
         response = await fetch(url, {
+          cache: restOptions.cache ?? "no-store",
           ...restOptions,
           headers: requestHeaders,
         });
@@ -622,49 +624,60 @@ export const adminApi = {
     if (params?.role) query.set("role", params.role);
     if (params?.page) query.set("page", params.page.toString());
     const qs = query.toString();
-    return apiClient(`/api/auth/admin/users/${qs ? `?${qs}` : ""}`, { method: "GET" });
+    return apiClient(`/api/auth/admin/users/${qs ? `?${qs}` : ""}`, {
+      method: "GET",
+      cacheTtl: 60,
+    });
   },
 
   getUserDetail: async (userId: string): Promise<any> => {
-    return apiClient(`/api/auth/admin/users/${userId}/`, { method: "GET" });
+    return apiClient(`/api/auth/admin/users/${userId}/`, { method: "GET", cacheTtl: 60 });
   },
 
   suspendUser: async (
     userId: string,
     reason?: string
   ): Promise<{ message: string; is_suspended: boolean }> => {
-    return apiClient(`/api/auth/admin/users/${userId}/suspend/`, {
-      method: "POST",
-      body: JSON.stringify({ reason: reason || "" }),
-    });
+    const res = await apiClient<{ message: string; is_suspended: boolean }>(
+      `/api/auth/admin/users/${userId}/suspend/`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason: reason || "" }),
+      }
+    );
+    invalidateClientCache("/api/auth/admin/users/");
+    return res;
   },
 
   getAnalyticsDashboard: async (): Promise<any> => {
-    return apiClient("/api/analytics/dashboard/", { method: "GET" });
+    return apiClient("/api/analytics/dashboard/", { method: "GET", cacheTtl: 60 });
   },
 
   getAuditLogs: async (page?: number): Promise<any> => {
     return apiClient(`/api/analytics/audit-logs/${page ? `?page=${page}` : ""}`, {
       method: "GET",
+      cacheTtl: 60,
     });
   },
 
   getReviews: async (): Promise<any> => {
-    return apiClient("/api/feedback/admin/reviews/", { method: "GET" });
+    return apiClient("/api/feedback/admin/reviews/", { method: "GET", cacheTtl: 60 });
   },
 
   toggleFeatureReview: async (reviewId: string): Promise<any> => {
-    invalidateClientCache("/api/feedback/");
-    return apiClient(`/api/feedback/admin/reviews/${reviewId}/toggle-feature/`, {
+    const res = await apiClient(`/api/feedback/admin/reviews/${reviewId}/toggle-feature/`, {
       method: "POST",
     });
+    invalidateClientCache("/api/feedback/");
+    return res;
   },
 
   deleteReview: async (reviewId: string): Promise<any> => {
-    invalidateClientCache("/api/feedback/");
-    return apiClient(`/api/feedback/admin/reviews/${reviewId}/`, {
+    const res = await apiClient(`/api/feedback/admin/reviews/${reviewId}/`, {
       method: "DELETE",
     });
+    invalidateClientCache("/api/feedback/");
+    return res;
   },
 
   getContactMessages: async (): Promise<any> => {
@@ -672,19 +685,21 @@ export const adminApi = {
   },
 
   updatePlatformSettings: async (data: Record<string, any>): Promise<any> => {
-    invalidateClientCache("/api/settings/");
-    return apiClient("/api/settings/", {
+    const res = await apiClient("/api/settings/", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    invalidateClientCache("/api/settings/");
+    return res;
   },
 
   updateSubscriptionPlan: async (planId: string, data: Record<string, any>): Promise<any> => {
-    invalidateClientCache("/api/subscriptions/");
-    return apiClient(`/api/subscriptions/plans/${planId}/`, {
+    const res = await apiClient(`/api/subscriptions/plans/${planId}/`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    invalidateClientCache("/api/subscriptions/");
+    return res;
   },
 };
 

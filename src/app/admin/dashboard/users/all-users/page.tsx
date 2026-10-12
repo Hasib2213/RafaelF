@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
+import { adminApi, resolveAvatarUrl } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -32,129 +33,6 @@ export interface UserCardItem {
   avatarUrl?: string;
   avatarColor: string;
 }
-
-const ALL_USERS_DATA: UserCardItem[] = [
-  {
-    id: "USR-001",
-    name: "Nila Akter",
-    phone: "+8801688148194",
-    email: "rezaux007@gmail.com",
-    subscriptionType: "Pro(Monthly)",
-    plan: "Pro Member",
-    joinedDate: "Jan 10, 2024",
-    avatarColor: "from-blue-600 to-indigo-700",
-  },
-  {
-    id: "USR-002",
-    name: "Sarah Johnson",
-    phone: "+1 (555) 234-5678",
-    email: "sarah.j@gmail.com",
-    subscriptionType: "Pro(Monthly)",
-    plan: "Pro Member",
-    joinedDate: "Feb 14, 2024",
-    avatarColor: "from-indigo-500 to-purple-600",
-  },
-  {
-    id: "USR-003",
-    name: "Alex Rivera",
-    phone: "+1 (555) 876-5432",
-    email: "alex.r@gmail.com",
-    subscriptionType: "Enterprise(Annual)",
-    plan: "Enterprise Member",
-    joinedDate: "Nov 22, 2023",
-    avatarColor: "from-purple-600 to-pink-600",
-  },
-  {
-    id: "USR-004",
-    name: "David Chen",
-    phone: "+1 (555) 345-6789",
-    email: "david.c@gmail.com",
-    subscriptionType: "Free(Standard)",
-    plan: "Free Member",
-    joinedDate: "Mar 05, 2024",
-    avatarColor: "from-cyan-500 to-blue-600",
-  },
-  {
-    id: "USR-005",
-    name: "Emma Watson",
-    phone: "+1 (555) 987-6543",
-    email: "emma.w@company.org",
-    subscriptionType: "Enterprise(Monthly)",
-    plan: "Enterprise Member",
-    joinedDate: "Apr 18, 2024",
-    avatarColor: "from-amber-500 to-orange-600",
-  },
-  {
-    id: "USR-006",
-    name: "Michael Brown",
-    phone: "+1 (555) 456-7890",
-    email: "michael.b@gmail.com",
-    subscriptionType: "Pro(Annual)",
-    plan: "Pro Member",
-    joinedDate: "May 30, 2024",
-    avatarColor: "from-emerald-500 to-teal-600",
-  },
-  {
-    id: "USR-007",
-    name: "Sophia Taylor",
-    phone: "+1 (555) 654-3210",
-    email: "sophia.t@gmail.com",
-    subscriptionType: "Free(Standard)",
-    plan: "Free Member",
-    joinedDate: "Jun 12, 2024",
-    avatarColor: "from-fuchsia-500 to-purple-600",
-  },
-  {
-    id: "USR-008",
-    name: "James Wilson",
-    phone: "+1 (555) 789-0123",
-    email: "james.w@gmail.com",
-    subscriptionType: "Free(Standard)",
-    plan: "Free Member",
-    joinedDate: "Jul 04, 2024",
-    avatarColor: "from-blue-600 to-cyan-600",
-  },
-  {
-    id: "USR-009",
-    name: "Liam Torres",
-    phone: "+1 (555) 123-9876",
-    email: "liam.t@hotmail.com",
-    subscriptionType: "Free(Standard)",
-    plan: "Free Member",
-    joinedDate: "Aug 19, 2024",
-    avatarColor: "from-teal-500 to-cyan-700",
-  },
-  {
-    id: "USR-010",
-    name: "Olivia Scott",
-    phone: "+1 (555) 432-1098",
-    email: "olivia.s@gmail.com",
-    subscriptionType: "Free(Standard)",
-    plan: "Free Member",
-    joinedDate: "Sep 01, 2024",
-    avatarColor: "from-rose-500 to-pink-600",
-  },
-  {
-    id: "USR-011",
-    name: "Marcus Webb",
-    phone: "+1 (555) 890-1234",
-    email: "marcus.w@enterprise.io",
-    subscriptionType: "Enterprise(Annual)",
-    plan: "Enterprise Member",
-    joinedDate: "Sep 15, 2024",
-    avatarColor: "from-violet-600 to-indigo-800",
-  },
-  {
-    id: "USR-012",
-    name: "Chloe Warren",
-    phone: "+1 (555) 567-8901",
-    email: "chloe.w@gmail.com",
-    subscriptionType: "Pro(Monthly)",
-    plan: "Pro Member",
-    joinedDate: "Oct 10, 2024",
-    avatarColor: "from-sky-500 to-blue-700",
-  },
-];
 
 // Phone Icon (fluent:call-12-regular)
 function FluentCallIcon({ className = "w-6 h-6 text-[#B5C8DB]" }: { className?: string }) {
@@ -308,6 +186,55 @@ export default function AllUsersPage() {
   const [pageSize, setPageSize] = useState(6);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [usersList, setUsersList] = useState<UserCardItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUsers() {
+      setIsLoading(true);
+      try {
+        const res = await adminApi.getUsers();
+        if (isMounted && res) {
+          const list = Array.isArray(res) ? res : res.results || [];
+          const colors = [
+            "from-blue-600 to-indigo-700",
+            "from-indigo-500 to-purple-600",
+            "from-purple-600 to-pink-600",
+            "from-cyan-500 to-blue-600",
+            "from-amber-500 to-orange-600",
+            "from-emerald-500 to-teal-600",
+          ];
+          const mapped: UserCardItem[] = list.map((u: any, idx: number) => {
+            const planStr = u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member";
+            return {
+              id: u.id ? String(u.id) : `USR-${idx + 1}`,
+              name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+              phone: u.phone || "Not specified",
+              email: u.email,
+              subscriptionType: `${u.plan || "Free"}(${u.subscription_period || "Standard"})`,
+              plan: planStr as PlanType,
+              joinedDate: u.date_joined
+                ? new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "Recent",
+              avatarUrl: resolveAvatarUrl(u.avatar_url || u.avatar) || undefined,
+              avatarColor: colors[idx % colors.length],
+            };
+          });
+          setUsersList(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load users:", err);
+        setUsersList([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadUsers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -330,7 +257,7 @@ export default function AllUsersPage() {
 
   // Filtering data
   const filteredUsers = useMemo(() => {
-    return ALL_USERS_DATA.filter((user) => {
+    return usersList.filter((user) => {
       const matchesPlan = selectedPlanTab === "ALL" || user.plan === selectedPlanTab;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
@@ -343,7 +270,7 @@ export default function AllUsersPage() {
 
       return matchesPlan && matchesSearch;
     });
-  }, [searchQuery, selectedPlanTab]);
+  }, [usersList, searchQuery, selectedPlanTab]);
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1;
@@ -506,7 +433,12 @@ export default function AllUsersPage() {
                 "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
             }}
           >
-            {paginatedUsers.length === 0 ? (
+            {isLoading ? (
+              <div className="py-24 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                <p className="font-['Lato'] text-base text-[#D0D0D0]">Loading users...</p>
+              </div>
+            ) : paginatedUsers.length === 0 ? (
               <div className="py-24 flex flex-col items-center justify-center gap-3 text-center">
                 <FluentSearchIcon className="w-12 h-12 text-white/30" />
                 <p className="font-['Lato'] text-base text-[#D0D0D0]">
@@ -605,7 +537,7 @@ export default function AllUsersPage() {
 
                         {/* Primary Action Button (Primary button: 510px x 40px) */}
                         <Link
-                          href={`/admin/dashboard/user-details?name=${encodeURIComponent(user.name)}&plan=${encodeURIComponent(user.plan)}`}
+                          href={`/admin/dashboard/user-details?id=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.name)}&plan=${encodeURIComponent(user.plan)}`}
                           className="w-full h-10 rounded-[8px] flex items-center justify-center gap-2 text-white font-['Lato'] font-semibold text-[15px] sm:text-[16px] leading-[150%] shadow-md hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer"
                           style={{
                             background:

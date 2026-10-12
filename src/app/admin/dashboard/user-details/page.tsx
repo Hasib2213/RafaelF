@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
-import { adminApi, subscriptionsApi } from "@/lib/api";
+import { adminApi, subscriptionsApi, resolveAvatarUrl } from "@/lib/api";
 import {
   SuspendUserIcon,
   StatCalendarIcon,
@@ -46,78 +46,27 @@ interface ActivityItem {
   type: "book" | "bookmark" | "subscription" | "audio" | "review" | "streak" | "security";
 }
 
-const PURCHASE_HISTORY: PurchaseHistoryItem[] = [
-  { id: "row-1", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Pro(Monthly)", amount: "$12.00" },
-  { id: "row-2", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Enterprise(Yearly)", amount: "$12.00" },
-  { id: "row-3", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Pro(Monthly)", amount: "$12.00" },
-  { id: "row-4", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Enterprise(Yearly)", amount: "$12.00" },
-  { id: "row-5", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Pro(Monthly)", amount: "$12.00" },
-  { id: "row-6", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Enterprise(Yearly)", amount: "$12.00" },
-  { id: "row-7", paymentDate: "03:35 PM, Jun 25, 2025", cardNumber: "123 1234 235 245", subscriptionType: "Pro(Monthly)", amount: "$12.00" },
-];
-
-const RECENT_ACTIVITIES: ActivityItem[] = [
-  {
-    id: "act-1",
-    title: "Finished reading 'The Great Gatsby'",
-    timestamp: "2 hours ago",
-    rating: 5.0,
-    type: "book",
-  },
-  {
-    id: "act-2",
-    title: "Added 'Atomic Habits' to Bookmarks",
-    timestamp: "5 hours ago",
-    type: "bookmark",
-  },
-  {
-    id: "act-3",
-    title: "Upgraded to Pro (Monthly) Plan",
-    timestamp: "1 day ago",
-    type: "subscription",
-  },
-  {
-    id: "act-4",
-    title: "Listened to Chapter 4 of 'Sapiens: A Brief History'",
-    timestamp: "2 days ago",
-    type: "audio",
-  },
-  {
-    id: "act-5",
-    title: "Reviewed '1984' by George Orwell",
-    timestamp: "3 days ago",
-    rating: 4.8,
-    type: "review",
-  },
-  {
-    id: "act-6",
-    title: "Completed 30-day Reading Streak! 🏆",
-    timestamp: "5 days ago",
-    type: "streak",
-  },
-  {
-    id: "act-7",
-    title: "Logged in from Chrome on MacOS (Los Angeles, USA)",
-    timestamp: "1 week ago",
-    type: "security",
-  },
-];
-
 function UserDetailsContent() {
   const searchParams = useSearchParams();
   const queryId = searchParams.get("id");
-  const queryName = searchParams.get("name") || "Alice Park";
+  const queryName = searchParams.get("name") || "";
   const queryPlan = searchParams.get("plan") || "Free Member";
 
   const [userId] = useState<string | null>(queryId);
-  const [userName, setUserName] = useState<string>(queryName);
+  const [userName, setUserName] = useState<string>(queryName || "User");
   const [userPlan, setUserPlan] = useState<string>(queryPlan);
   const [userEmail, setUserEmail] = useState<string>(
-    queryName.toLowerCase().replace(/\s+/g, ".") + "@gmail.com"
+    queryName ? queryName.toLowerCase().replace(/\s+/g, ".") + "@gmail.com" : ""
   );
-  const [memberSince, setMemberSince] = useState<string>("24 Aug 2024");
+  const [memberSince, setMemberSince] = useState<string>("Recent");
   const [isSuspended, setIsSuspended] = useState(false);
-  const [transactions, setTransactions] = useState<PurchaseHistoryItem[]>(PURCHASE_HISTORY);
+  const [followingCount, setFollowingCount] = useState<number>(0);
+  const [savedBriefingsCount, setSavedBriefingsCount] = useState<number>(0);
+  const [userPhone, setUserPhone] = useState<string>("Not specified");
+  const [userAddress, setUserAddress] = useState<string>("Not specified");
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<PurchaseHistoryItem[]>([]);
+  const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -133,17 +82,55 @@ function UserDetailsContent() {
           const u = await adminApi.getUserDetail(queryId);
           if (isMounted && u) {
             const name = u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email;
-            setUserName(name);
+            if (name) setUserName(name);
             if (u.email) setUserEmail(u.email);
             if (u.plan) setUserPlan(u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member");
             if (u.is_suspended !== undefined) setIsSuspended(u.is_suspended);
             if (u.date_joined) {
               setMemberSince(new Date(u.date_joined).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }));
             }
+            if (u.following_count !== undefined) setFollowingCount(u.following_count);
+            if (u.saved_briefings_count !== undefined) setSavedBriefingsCount(u.saved_briefings_count);
+            if (u.phone) setUserPhone(u.phone);
+            if (u.address) setUserAddress(u.address);
+            if (u.avatar || u.avatar_url) setUserAvatar(u.avatar_url || u.avatar);
+            if (u.recent_transactions && u.recent_transactions.length > 0) {
+              const mapped: PurchaseHistoryItem[] = u.recent_transactions.map((t: any, idx: number) => ({
+                id: t.id || `row-${idx + 1}`,
+                paymentDate: t.created_at
+                  ? new Date(t.created_at).toLocaleDateString("en-US", { hour: "numeric", minute: "numeric", month: "short", day: "numeric", year: "numeric" })
+                  : "Recent",
+                cardNumber: t.card_last4 ? `•••• •••• •••• ${t.card_last4}` : "Stripe Payment",
+                subscriptionType: (t.plan_name === "Pro" ? "Pro(Monthly)" : t.plan_name === "Enterprise" ? "Enterprise(Yearly)" : "Free Member") as any,
+                amount: `$${parseFloat(t.amount || "12.00").toFixed(2)}`,
+              }));
+              setTransactions(mapped);
+            }
           }
         } catch {
           // fallback
         }
+      }
+
+      // Load activity audit logs for recent activities
+      try {
+        const logsRes = await adminApi.getAuditLogs(1);
+        if (isMounted && logsRes) {
+          const list = Array.isArray(logsRes) ? logsRes : logsRes.results || [];
+          const mapped: ActivityItem[] = list.slice(0, 7).map((item: any, idx: number) => ({
+            id: item.id ? String(item.id) : `act-${idx + 1}`,
+            title: item.title || item.action || "User Activity",
+            timestamp: item.created_at
+              ? new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+              : "Recent",
+            type: (["book", "bookmark", "subscription", "audio", "review", "streak", "security"].includes(item.category?.toLowerCase())
+              ? item.category.toLowerCase()
+              : "security") as any,
+          }));
+          setRecentActivities(mapped);
+        }
+      } catch {
+        if (isMounted) setRecentActivities([]);
       }
 
       try {
@@ -158,7 +145,7 @@ function UserDetailsContent() {
             subscriptionType: (t.plan_name === "Pro" ? "Pro(Monthly)" : t.plan_name === "Enterprise" ? "Enterprise(Yearly)" : "Free Member") as any,
             amount: `$${parseFloat(t.amount || "12.00").toFixed(2)}`,
           }));
-          setTransactions(mapped);
+          setTransactions((prev) => (prev.length > 0 ? prev : mapped));
         }
       } catch {
         // fallback
@@ -446,9 +433,17 @@ function UserDetailsContent() {
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-5 w-full md:w-auto">
                 {/* Avatar with fallback initials */}
                 <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full border-2 border-white p-1 bg-[#2B2A7D] shrink-0 shadow-2xl overflow-hidden relative group">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-inner">
-                    {initials}
-                  </div>
+                  {userAvatar ? (
+                    <img
+                      src={resolveAvatarUrl(userAvatar)}
+                      alt={userName}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center text-white font-bold text-3xl sm:text-4xl shadow-inner">
+                      {initials}
+                    </div>
+                  )}
                   {isSuspended && (
                     <div className="absolute inset-0 bg-red-900/85 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
                       Suspended
@@ -486,20 +481,20 @@ function UserDetailsContent() {
                       <svg className="w-3.5 h-3.5 text-[#3E8AFB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
-                      {userEmail}
+                      {userEmail || "No email available"}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-[#3E8AFB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
-                      +1 (555) 349-2049
+                      {userPhone}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-[#3E8AFB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                      Los Angeles, CA
+                      {userAddress}
                     </span>
                   </div>
                 </div>
@@ -549,7 +544,7 @@ function UserDetailsContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    220
+                    {followingCount}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <ChannelsFollowingVideoIcon className="w-5 h-5 text-white" />
@@ -561,19 +556,19 @@ function UserDetailsContent() {
               </div>
             </div>
 
-            {/* Card 3: Audio Played */}
+            {/* Card 3: Briefings Saved */}
             <div className="h-[112px] rounded-xl p-[20px_16px] flex items-center bg-[#2B2A7D] bg-gradient-to-r from-[rgba(43,127,255,0.2)] to-[rgba(79,57,246,0.2)] shadow-[6px_6px_54px_rgba(0,0,0,0.05)] border border-white/10 hover:border-white/20 transition-all">
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    2,134 / 41
+                    {savedBriefingsCount}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <StatPlaylistIcon className="w-5 h-5 text-white" />
                   </div>
                 </div>
                 <span className="font-['Lato'] font-medium text-base text-white leading-[150%]">
-                  Audio Played
+                  Briefings Saved
                 </span>
               </div>
             </div>
@@ -637,46 +632,52 @@ function UserDetailsContent() {
                     </div>
                   </div>
 
-                  {/* 7 Table Rows */}
+                  {/* Table Rows */}
                   <div className="flex flex-col w-[718px]">
-                    {transactions.slice(0, rowsPerPage).map((item, idx) => {
-                      const isEvenRow = idx % 2 === 0;
-                      const isLastRow = idx === Math.min(transactions.length, rowsPerPage) - 1;
+                    {transactions.length === 0 ? (
+                      <div className="w-full py-16 flex items-center justify-center text-white/50 font-['Lato'] text-sm">
+                        No purchase history found for this user.
+                      </div>
+                    ) : (
+                      transactions.slice(0, rowsPerPage).map((item, idx) => {
+                        const isEvenRow = idx % 2 === 0;
+                        const isLastRow = idx === Math.min(transactions.length, rowsPerPage) - 1;
 
-                      return (
-                        <div
-                          key={item.id}
-                          className={`group relative w-[718px] h-[68px] px-4 flex items-center justify-between shrink-0 transition-all duration-200 cursor-pointer ${
-                            isLastRow ? "rounded-b-[16px]" : ""
-                          } hover:brightness-110 hover:shadow-[inset_0_0_24px_rgba(43,127,255,0.25)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-gradient-to-b before:from-[#2B7FFF] before:to-[#4F39F6] before:opacity-0 hover:before:opacity-100 before:transition-opacity`}
-                          style={{
-                            background: isEvenRow
-                              ? "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)"
-                              : "linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
-                          }}
-                        >
-                          <div className="w-[180px] shrink-0 text-center font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-[#DCE6F2] group-hover:text-white transition-colors">
-                            {item.paymentDate}
-                          </div>
+                        return (
+                          <div
+                            key={item.id}
+                            className={`group relative w-[718px] h-[68px] px-4 flex items-center justify-between shrink-0 transition-all duration-200 cursor-pointer ${
+                              isLastRow ? "rounded-b-[16px]" : ""
+                            } hover:brightness-110 hover:shadow-[inset_0_0_24px_rgba(43,127,255,0.25)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-gradient-to-b before:from-[#2B7FFF] before:to-[#4F39F6] before:opacity-0 hover:before:opacity-100 before:transition-opacity`}
+                            style={{
+                              background: isEvenRow
+                                ? "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)"
+                                : "linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
+                            }}
+                          >
+                            <div className="w-[180px] shrink-0 text-center font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-[#DCE6F2] group-hover:text-white transition-colors">
+                              {item.paymentDate}
+                            </div>
 
-                          <div className="w-[137px] shrink-0 text-left font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-[#DCE6F2] group-hover:text-white group-hover:font-medium transition-colors">
-                            {item.cardNumber}
-                          </div>
+                            <div className="w-[137px] shrink-0 text-left font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-[#DCE6F2] group-hover:text-white group-hover:font-medium transition-colors">
+                              {item.cardNumber}
+                            </div>
 
-                          <div className="w-[156px] shrink-0 flex items-center justify-center">
-                            <div className="w-[118px] h-[30px] rounded-[4px] bg-[rgba(255,255,255,0.2)] px-3 py-1 flex items-center justify-center shadow-sm group-hover:bg-[rgba(255,255,255,0.32)] group-hover:scale-105 group-hover:shadow-md transition-all duration-200">
-                              <span className="font-['Lato'] font-semibold text-[12px] leading-[140%] text-white whitespace-nowrap">
-                                {userPlan || item.subscriptionType}
-                              </span>
+                            <div className="w-[156px] shrink-0 flex items-center justify-center">
+                              <div className="w-[118px] h-[30px] rounded-[4px] bg-[rgba(255,255,255,0.2)] px-3 py-1 flex items-center justify-center shadow-sm group-hover:bg-[rgba(255,255,255,0.32)] group-hover:scale-105 group-hover:shadow-md transition-all duration-200">
+                                <span className="font-['Lato'] font-semibold text-[12px] leading-[140%] text-white whitespace-nowrap">
+                                  {userPlan || item.subscriptionType}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="w-[137px] shrink-0 text-left font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-white group-hover:text-[#8BC5FF] group-hover:font-medium transition-colors">
+                              {userPlan.includes("Free") ? "$0.00" : item.amount}
                             </div>
                           </div>
-
-                          <div className="w-[137px] shrink-0 text-left font-['Lato'] font-normal text-[16px] leading-[150%] tracking-[-0.02em] text-white group-hover:text-[#8BC5FF] group-hover:font-medium transition-colors">
-                            {userPlan.includes("Free") ? "$0.00" : item.amount}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -790,26 +791,32 @@ function UserDetailsContent() {
 
               <div className="w-full rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl bg-[#2B2A7D] bg-gradient-to-r from-[rgba(43,127,255,0.2)] to-[rgba(79,57,246,0.2)] flex flex-col gap-4">
                 <div className="divide-y divide-white/10">
-                  {RECENT_ACTIVITIES.map((activity) => (
-                    <div key={activity.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col gap-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-['Inter'] text-sm font-medium text-white/95 leading-snug">
-                          {activity.title}
-                        </span>
-                        {activity.rating && (
-                          <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-semibold">
-                            <YellowStarIcon className="w-3 h-3 text-[#FFB216]" />
-                            <span>{activity.rating.toFixed(1)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[#B5C8DB]">
-                        <span>{activity.timestamp}</span>
-                        <span>•</span>
-                        <span className="capitalize">{activity.type}</span>
-                      </div>
+                  {recentActivities.length === 0 ? (
+                    <div className="py-8 text-center text-white/50 font-['Lato'] text-sm">
+                      No recent activities recorded for this user.
                     </div>
-                  ))}
+                  ) : (
+                    recentActivities.map((activity) => (
+                      <div key={activity.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col gap-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-['Inter'] text-sm font-medium text-white/95 leading-snug">
+                            {activity.title}
+                          </span>
+                          {activity.rating && (
+                            <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-semibold">
+                              <YellowStarIcon className="w-3 h-3 text-[#FFB216]" />
+                              <span>{activity.rating.toFixed(1)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-[#B5C8DB]">
+                          <span>{activity.timestamp}</span>
+                          <span>•</span>
+                          <span className="capitalize">{activity.type}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-white/10">

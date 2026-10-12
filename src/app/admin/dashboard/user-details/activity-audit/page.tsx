@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
@@ -34,130 +35,11 @@ interface AuditLogEntry {
   statusType: "success" | "verified" | "neutral" | "warning";
 }
 
-const AUDIT_LOGS: AuditLogEntry[] = [
-  {
-    id: "LOG-1001",
-    timestamp: "04:12 PM, Jun 25, 2025",
-    category: "Reading",
-    title: "Completed Chapter 12: 'The Great Gatsby'",
-    description: "Reading progress reached 100%. Total reading session duration: 52 minutes.",
-    device: "MacBook Pro • Chrome 126",
-    ip: "192.168.1.45",
-    location: "Los Angeles, CA (US)",
-    status: "Completed",
-    statusType: "success",
-  },
-  {
-    id: "LOG-1002",
-    timestamp: "03:35 PM, Jun 25, 2025",
-    category: "Billing",
-    title: "Payment Processed: Pro (Monthly) Plan",
-    description: "Card ending in 5245 charged $12.00 via Stripe gateway. Invoice #INV-8834.",
-    device: "Stripe Webhook Server",
-    ip: "54.187.214.12",
-    location: "San Francisco, CA (US)",
-    status: "Success",
-    statusType: "success",
-  },
-  {
-    id: "LOG-1003",
-    timestamp: "02:15 PM, Jun 25, 2025",
-    category: "Security",
-    title: "Session Login & 2FA Verification",
-    description: "Two-Factor SMS authentication passed successfully. New session token generated.",
-    device: "MacBook Pro • Chrome 126",
-    ip: "192.168.1.45",
-    location: "Los Angeles, CA (US)",
-    status: "Verified",
-    statusType: "verified",
-  },
-  {
-    id: "LOG-1004",
-    timestamp: "11:40 AM, Jun 24, 2025",
-    category: "Audiobook",
-    title: "Listened to Chapter 4: 'Sapiens: A Brief History'",
-    description: "Audio player stream completed without interruption. Total playtime: 42m 18s.",
-    device: "iPhone 15 Pro • iOS 18 App",
-    ip: "192.168.1.88",
-    location: "Los Angeles, CA (US)",
-    status: "100% Played",
-    statusType: "neutral",
-  },
-  {
-    id: "LOG-1005",
-    timestamp: "09:10 PM, Jun 23, 2025",
-    category: "Review",
-    title: "Submitted 5.0 Star Review on '1984 by George Orwell'",
-    description: "Public review published: 'An absolute masterpiece that remains timeless.'",
-    device: "iPad Pro • Safari 17",
-    ip: "192.168.1.12",
-    location: "Los Angeles, CA (US)",
-    status: "5.0 ★ Rating",
-    statusType: "success",
-  },
-  {
-    id: "LOG-1006",
-    timestamp: "06:50 PM, Jun 22, 2025",
-    category: "Bookmark",
-    title: "Added 'Atomic Habits' to Personal Library",
-    description: "Book saved into user favorites and downloaded for offline reading cache.",
-    device: "MacBook Pro • Chrome 126",
-    ip: "192.168.1.45",
-    location: "Los Angeles, CA (US)",
-    status: "Saved",
-    statusType: "neutral",
-  },
-  {
-    id: "LOG-1007",
-    timestamp: "01:20 PM, Jun 21, 2025",
-    category: "Security",
-    title: "Password & Security Token Refreshed",
-    description: "Automated quarterly security credentials token rotation completed.",
-    device: "MacBook Pro • Chrome 126",
-    ip: "192.168.1.45",
-    location: "Los Angeles, CA (US)",
-    status: "Secure",
-    statusType: "verified",
-  },
-  {
-    id: "LOG-1008",
-    timestamp: "08:45 AM, Jun 20, 2025",
-    category: "Milestone",
-    title: "Achieved 30-Day Reading Streak Trophy 🏆",
-    description: "Read every day for 30 consecutive days. Automated badge awarded to profile.",
-    device: "Curio Gamification Engine",
-    ip: "Internal Trigger",
-    location: "Cloud Cluster",
-    status: "Milestone",
-    statusType: "success",
-  },
-  {
-    id: "LOG-1009",
-    timestamp: "05:30 PM, Jun 19, 2025",
-    category: "Reading",
-    title: "Highlighted 4 Quotations in 'Thinking, Fast & Slow'",
-    description: "Synced 4 annotations to Cloud Bookmarks database.",
-    device: "MacBook Pro • Chrome 126",
-    ip: "192.168.1.45",
-    location: "Los Angeles, CA (US)",
-    status: "4 Synced",
-    statusType: "neutral",
-  },
-  {
-    id: "LOG-1010",
-    timestamp: "02:00 PM, Jun 18, 2025",
-    category: "Billing",
-    title: "Invoice Generated: #INV-2025-06-25",
-    description: "Monthly subscription invoice receipt dispatched to lebronjames@example.com.",
-    device: "Automated Mailer Service",
-    ip: "Internal Daemon",
-    location: "System",
-    status: "Dispatched",
-    statusType: "neutral",
-  },
-];
+function CompleteActivityAuditContent() {
+  const searchParams = useSearchParams();
+  const userName = searchParams.get("name") || "User Activity Audit";
+  const userInitials = userName.slice(0, 2).toUpperCase();
 
-export default function CompleteActivityAuditPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -165,44 +47,46 @@ export default function CompleteActivityAuditPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isExporting, setIsExporting] = useState(false);
-  const [apiLogs, setApiLogs] = useState<AuditLogEntry[] | null>(null);
+  const [apiLogs, setApiLogs] = useState<AuditLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     async function loadAuditLogs() {
+      setIsLoading(true);
       try {
         const res = await adminApi.getAuditLogs(currentPage);
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
-          if (list.length > 0) {
-            const mapped: AuditLogEntry[] = list.map((item: any) => ({
-              id: item.id ? `LOG-${item.id.toString().slice(-4)}` : `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-              timestamp: item.created_at
-                ? new Date(item.created_at).toLocaleString("en-US", {
-                    hour: "numeric",
-                    minute: "numeric",
-                    hour12: true,
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
-                : "Recent",
-              category: (["Reading", "Security", "Billing", "Audiobook", "Review", "Bookmark", "Milestone"].includes(item.category)
-                ? item.category
-                : "Security") as any,
-              title: item.title || item.action || "User Activity Logged",
-              description: item.description || item.details || "Activity details processed by server.",
-              device: item.device || item.user_agent || "Web Client",
-              ip: item.ip_address || item.ip || "127.0.0.1",
-              location: item.location || "Local",
-              status: item.status || "Completed",
-              statusType: (item.status_type || (item.status === "Failed" ? "warning" : "success")) as any,
-            }));
-            setApiLogs(mapped);
-          }
+          const mapped: AuditLogEntry[] = list.map((item: any) => ({
+            id: item.id ? `LOG-${item.id.toString().slice(-4)}` : `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+            timestamp: item.created_at
+              ? new Date(item.created_at).toLocaleString("en-US", {
+                  hour: "numeric",
+                  minute: "numeric",
+                  hour12: true,
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Recent",
+            category: (["Reading", "Security", "Billing", "Audiobook", "Review", "Bookmark", "Milestone"].includes(item.category)
+              ? item.category
+              : "Security") as any,
+            title: item.title || item.action || "User Activity Logged",
+            description: item.description || item.details || "Activity details processed by server.",
+            device: item.device || item.user_agent || "Web Client",
+            ip: item.ip_address || item.ip || "127.0.0.1",
+            location: item.location || "Local",
+            status: item.status || "Completed",
+            statusType: (item.status_type || (item.status === "Failed" ? "warning" : "success")) as any,
+          }));
+          setApiLogs(mapped);
         }
       } catch {
-        // Fallback to static mock data
+        if (isMounted) setApiLogs([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
     loadAuditLogs();
@@ -221,11 +105,9 @@ export default function CompleteActivityAuditPage() {
     }
   };
 
-  const logsToDisplay = apiLogs && apiLogs.length > 0 ? apiLogs : AUDIT_LOGS;
-
   // Filter logs by search term & category
   const filteredLogs = useMemo(() => {
-    return logsToDisplay.filter((entry) => {
+    return apiLogs.filter((entry) => {
       const matchesCategory =
         selectedCategory === "All" || entry.category.toLowerCase() === selectedCategory.toLowerCase();
       const matchesSearch =
@@ -237,13 +119,13 @@ export default function CompleteActivityAuditPage() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [logsToDisplay, searchTerm, selectedCategory]);
+  }, [apiLogs, searchTerm, selectedCategory]);
 
   const handleExport = () => {
     setIsExporting(true);
     setTimeout(() => {
       setIsExporting(false);
-      alert("Activity Audit Log for Lebron James exported successfully as CSV (1,450 records).");
+      alert(`Activity Audit Log for ${userName} exported successfully as CSV (${filteredLogs.length} records).`);
     }, 800);
   };
 
@@ -500,35 +382,29 @@ export default function CompleteActivityAuditPage() {
           <section className="w-full rounded-2xl p-6 border border-white/10 shadow-2xl bg-[#2B2A7D] bg-gradient-to-r from-[rgba(43,127,255,0.2)] to-[rgba(79,57,246,0.2)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               {/* User Avatar */}
-              <div className="w-16 h-16 rounded-full border-2 border-white/30 overflow-hidden bg-[#181F40] shadow-lg shrink-0">
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80"
-                  alt="Lebron James"
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-16 h-16 rounded-full border-2 border-white/30 overflow-hidden bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0">
+                {userInitials}
               </div>
 
               {/* Identity Info */}
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="font-['Lato'] font-bold text-2xl text-white tracking-tight">
-                    Lebron James
+                    {userName}
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
                     Active User
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[rgba(43,127,255,0.2)] border border-[rgba(43,127,255,0.4)] text-[#8BC5FF]">
-                    Pro (Monthly)
+                    Activity Audit
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-[#B5C8DB] flex-wrap">
-                  <span>@lebronjames</span>
+                  <span>@{userName.toLowerCase().replace(/\s+/g, "")}</span>
                   <span>•</span>
-                  <span>ID: #USR-98421</span>
+                  <span>Total Logged Events: <strong>{filteredLogs.length}</strong></span>
                   <span>•</span>
-                  <span>Total Logged Events: <strong>1,450</strong></span>
-                  <span>•</span>
-                  <span className="text-emerald-400">● Last active 12 mins ago</span>
+                  <span className="text-emerald-400">● Live Audit Logs</span>
                 </div>
               </div>
             </div>
@@ -894,5 +770,19 @@ export default function CompleteActivityAuditPage() {
         title="Are you sure you want to Log out?"
       />
     </div>
+  );
+}
+
+export default function CompleteActivityAuditPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+        </div>
+      }
+    >
+      <CompleteActivityAuditContent />
+    </Suspense>
   );
 }

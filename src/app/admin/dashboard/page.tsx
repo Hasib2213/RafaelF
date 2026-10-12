@@ -140,85 +140,11 @@ interface ActivityItem {
   avatarColor: string;
 }
 
-const initialActivities: ActivityItem[] = [
-  {
-    id: "ACT-001",
-    name: "Sarah Johnson",
-    email: "sarah.j@gmail.com",
-    plan: "Pro",
-    type: "New User Registered",
-    description: "Sarah Johnson joined as Pro member",
-    dateTime: "24 Oct, 2026 10:30 AM",
-    avatarColor: "from-blue-500 to-indigo-600",
-  },
-  {
-    id: "ACT-002",
-    name: "Alex Rivera",
-    email: "alex.r@gmail.com",
-    plan: "Enterprise",
-    type: "Video Processed",
-    description: "AI Trends 2026.mp4 completed",
-    dateTime: "24 Oct, 2026 09:15 AM",
-    avatarColor: "from-purple-500 to-pink-600",
-  },
-  {
-    id: "ACT-003",
-    name: "David Chen",
-    email: "david.c@gmail.com",
-    plan: "Free",
-    type: "Audio Played",
-    description: "Morning Briefing audio played",
-    dateTime: "24 Oct, 2026 08:45 AM",
-    avatarColor: "from-cyan-500 to-blue-600",
-  },
-  {
-    id: "ACT-004",
-    name: "Emma Watson",
-    email: "emma.w@gmail.com",
-    plan: "Pro",
-    type: "Platform Review 4/5",
-    description: "Added a review about the platform",
-    rating: 4,
-    dateTime: "23 Oct, 2026 06:20 PM",
-    avatarColor: "from-amber-500 to-orange-600",
-  },
-  {
-    id: "ACT-005",
-    name: "Michael Brown",
-    email: "michael.b@gmail.com",
-    plan: "Pro",
-    type: "Subscription Upgrade",
-    description: "Free to Pro",
-    dateTime: "23 Oct, 2026 04:10 PM",
-    avatarColor: "from-emerald-500 to-teal-600",
-  },
-  {
-    id: "ACT-006",
-    name: "Sophia Taylor",
-    email: "sophia.t@gmail.com",
-    plan: "Enterprise",
-    type: "Added to Library",
-    description: "Motive pro video was added to library",
-    dateTime: "23 Oct, 2026 02:00 PM",
-    avatarColor: "from-fuchsia-500 to-purple-600",
-  },
-  {
-    id: "ACT-007",
-    name: "James Wilson",
-    email: "james.w@gmail.com",
-    plan: "Free",
-    type: "Download",
-    description: "Motive pro video was downloaded",
-    dateTime: "23 Oct, 2026 11:30 AM",
-    avatarColor: "from-blue-600 to-cyan-600",
-  },
-];
-
 export default function AdminDashboardPage() {
   const [activeNav, setActiveNav] = useState("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [selectedPlanFilter, setSelectedPlanFilter] = useState<"ALL" | "Free" | "Pro" | "Enterprise">("Free");
+  const [selectedPlanFilter, setSelectedPlanFilter] = useState<"ALL" | "Free" | "Pro" | "Enterprise">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTimeframe, setSelectedTimeframe] = useState<"Yearly" | "Monthly" | "Weekly">("Yearly");
   const [selectedGrowthPeriod, setSelectedGrowthPeriod] = useState<"Weekly" | "Monthly" | "Yearly">("Weekly");
@@ -229,13 +155,16 @@ export default function AdminDashboardPage() {
   const [adminUser, setAdminUser] = useState({ name: "Abir Hossain", role: "Admin", email: "admin@curio.ai" });
 
   const [metrics, setMetrics] = useState({
-    totalUsers: "12,802",
-    totalRevenue: "23,028",
-    totalVideoProcessed: "22,000",
-    totalAiSummary: "10,000",
+    totalUsers: "0",
+    totalRevenue: "0",
+    totalVideoProcessed: "0",
+    totalAiSummary: "0",
   });
-  const [activitiesList, setActivitiesList] = useState<ActivityItem[]>(initialActivities);
-  const [liveRevenueStats, setLiveRevenueStats] = useState<any[] | null>(null);
+  const [activitiesList, setActivitiesList] = useState<ActivityItem[]>([]);
+  const [liveRevenueStats, setLiveRevenueStats] = useState<any | null>(null);
+  const [liveGrowthData, setLiveGrowthData] = useState<any | null>(null);
+  const [liveYAxisLabels, setLiveYAxisLabels] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -258,6 +187,7 @@ export default function AdminDashboardPage() {
 
     let isMounted = true;
     async function loadDashboard() {
+      setIsLoading(true);
       try {
         const data = await adminApi.getAnalyticsDashboard();
         if (isMounted && data) {
@@ -269,8 +199,14 @@ export default function AdminDashboardPage() {
               totalAiSummary: Number(data.metrics.total_ai_summary || 0).toLocaleString(),
             });
           }
-          if (Array.isArray(data.revenue_stats) && data.revenue_stats.length > 0) {
-            setLiveRevenueStats(data.revenue_stats);
+          if (data.revenue_stats || data.all_revenue_stats) {
+            setLiveRevenueStats(data.all_revenue_stats || data.revenue_stats);
+          }
+          if (data.customer_growth || data.all_customer_growth) {
+            setLiveGrowthData(data.all_customer_growth || data.customer_growth);
+          }
+          if (data.y_axis_labels) {
+            setLiveYAxisLabels(data.y_axis_labels);
           }
           if (Array.isArray(data.recent_activities) && data.recent_activities.length > 0) {
             const colors = [
@@ -296,7 +232,9 @@ export default function AdminDashboardPage() {
           }
         }
       } catch (err) {
-        // Fallback to static mock data
+        // Fallback
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
     loadDashboard();
@@ -328,53 +266,75 @@ export default function AdminDashboardPage() {
     return act.plan.toLowerCase() === selectedPlanFilter.toLowerCase();
   });
 
-  // Performance bar data matching exact Figma values
-  const revenueDataMap = {
+  // Dynamic fallback mappings while fetching live database stats
+  const fallbackRevenueMap: Record<string, any[]> = {
     Yearly: [
-      { label: "2019", height: 127, value: "58,000", tooltip: "1140 Person" },
-      { label: "2020", height: 158, value: "78,000", tooltip: "1275 Person", showDefaultBadge: true },
-      { label: "2021", height: 86, value: "34,000", tooltip: "850 Person" },
-      { label: "2022", height: 142, value: "65,000", tooltip: "1620 Person" },
-      { label: "2023", height: 188, value: "95,000", tooltip: "2342 Person", showDefaultBadge: true },
-      { label: "2024", height: 105, value: "45,000", tooltip: "1090 Person" },
-      { label: "2025", height: 129, value: "59,000", tooltip: "1350 Person" },
+      { label: "2020", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2021", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2022", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2023", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2024", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2025", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "2026", height: 20, value: "$0", tooltip: "0 Users" },
     ],
     Monthly: [
-      { label: "Jan", height: 110, value: "42,000", tooltip: "920 Person" },
-      { label: "Feb", height: 135, value: "54,000", tooltip: "1180 Person" },
-      { label: "Mar", height: 95, value: "38,000", tooltip: "840 Person" },
-      { label: "Apr", height: 150, value: "68,000", tooltip: "1550 Person", showDefaultBadge: true },
-      { label: "May", height: 175, value: "88,000", tooltip: "2100 Person", showDefaultBadge: true },
-      { label: "Jun", height: 120, value: "51,000", tooltip: "1100 Person" },
-      { label: "Jul", height: 140, value: "62,000", tooltip: "1420 Person" },
+      { label: "Apr", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "May", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Jun", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Jul", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Aug", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Sep", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Oct", height: 20, value: "$0", tooltip: "0 Users" },
     ],
     Weekly: [
-      { label: "Fri", height: 127, value: "58,000", tooltip: "1140 Person" },
-      { label: "Sat", height: 158, value: "78,000", tooltip: "1275 Person", showDefaultBadge: true },
-      { label: "Sun", height: 86, value: "34,000", tooltip: "850 Person" },
-      { label: "Mon", height: 142, value: "65,000", tooltip: "1620 Person" },
-      { label: "Tue", height: 188, value: "95,000", tooltip: "2342 Person", showDefaultBadge: true },
-      { label: "Wed", height: 105, value: "45,000", tooltip: "1090 Person" },
-      { label: "Thu", height: 129, value: "59,000", tooltip: "1350 Person" },
+      { label: "Mon", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Tue", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Wed", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Thu", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Fri", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Sat", height: 20, value: "$0", tooltip: "0 Users" },
+      { label: "Sun", height: 20, value: "$0", tooltip: "0 Users" },
     ],
   };
 
-  const currentRevenueData = revenueDataMap[selectedTimeframe];
+  const currentRevenueData =
+    (liveRevenueStats &&
+      (Array.isArray(liveRevenueStats[selectedTimeframe])
+        ? liveRevenueStats[selectedTimeframe]
+        : Array.isArray(liveRevenueStats)
+        ? liveRevenueStats
+        : null)) ||
+    fallbackRevenueMap[selectedTimeframe] ||
+    fallbackRevenueMap.Yearly;
 
-  // Dynamic data mapping for Average Customer Growth
-  const growthDataMap: Record<
+  const currentYAxisLabels =
+    (liveYAxisLabels && liveYAxisLabels[selectedTimeframe]) || [
+      "$200",
+      "$150",
+      "$100",
+      "$50",
+      "$0",
+    ];
+
+  const fallbackGrowthMap: Record<
     "Weekly" | "Monthly" | "Yearly",
     { percentage: number; growthRate: string }
   > = {
-    Weekly: { percentage: 22, growthRate: "+5.25%" },
-    Monthly: { percentage: 54, growthRate: "+18.40%" },
-    Yearly: { percentage: 78, growthRate: "+42.60%" },
+    Weekly: { percentage: 0, growthRate: "0%" },
+    Monthly: { percentage: 0, growthRate: "0%" },
+    Yearly: { percentage: 0, growthRate: "0%" },
   };
 
-  const currentGrowthData = growthDataMap[selectedGrowthPeriod];
+  const currentGrowthData =
+    (liveGrowthData &&
+      (liveGrowthData[selectedGrowthPeriod] ||
+        (typeof liveGrowthData.percentage === "number" ? liveGrowthData : null))) ||
+    fallbackGrowthMap[selectedGrowthPeriod];
+
   const donutCircumference = 264;
   const donutStrokeOffset =
-    donutCircumference - (donutCircumference * currentGrowthData.percentage) / 100;
+    donutCircumference -
+    (donutCircumference * Math.min(100, Math.max(0, currentGrowthData.percentage))) / 100;
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white flex flex-col font-['Lato',sans-serif] selection:bg-[#4F39F6] selection:text-white">
@@ -674,7 +634,11 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalUsers}</span>
+                  {isLoading ? (
+                    <div className="h-9 w-20 bg-white/10 rounded-md animate-pulse" />
+                  ) : (
+                    <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalUsers}</span>
+                  )}
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardUsersIcon className="w-6 h-6 text-white" />
                   </div>
@@ -690,7 +654,11 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">${metrics.totalRevenue}</span>
+                  {isLoading ? (
+                    <div className="h-9 w-24 bg-white/10 rounded-md animate-pulse" />
+                  ) : (
+                    <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">${metrics.totalRevenue}</span>
+                  )}
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardRevenueIcon className="w-6 h-6 text-white" />
                   </div>
@@ -706,7 +674,11 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalVideoProcessed}</span>
+                  {isLoading ? (
+                    <div className="h-9 w-20 bg-white/10 rounded-md animate-pulse" />
+                  ) : (
+                    <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalVideoProcessed}</span>
+                  )}
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardVideoIcon className="w-6 h-6 text-white" />
                   </div>
@@ -722,7 +694,11 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalAiSummary}</span>
+                  {isLoading ? (
+                    <div className="h-9 w-20 bg-white/10 rounded-md animate-pulse" />
+                  ) : (
+                    <span className="text-[32px] font-medium text-white tracking-tight leading-[130%]">{metrics.totalAiSummary}</span>
+                  )}
                   <div className="w-12 h-12 rounded-lg bg-[#FFEFDF]/30 flex items-center justify-center text-white shrink-0">
                     <CardAiSummaryIcon className="w-6 h-6 text-white" />
                   </div>
@@ -771,14 +747,14 @@ export default function AdminDashboardPage() {
                     </button>
                   </div>
 
-                  {/* Legend: Users (Frame 45) */}
+                  {/* Legend: Revenue ($) */}
                   <div className="flex items-center gap-2">
                     <div
                       className="w-[14px] h-[14px] rounded-full shrink-0"
                       style={{ background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }}
                     />
                     <span className="text-base font-normal text-white font-['Lato',sans-serif] tracking-[-0.02em]">
-                      Users
+                      Revenue ($)
                     </span>
                   </div>
                 </div>
@@ -786,45 +762,27 @@ export default function AdminDashboardPage() {
                 {/* Chart Area (Frame 151: 594px x 250px) */}
                 <div className="w-full overflow-x-auto pb-1 scrollbar-thin">
                   <div className="min-w-[320px] flex items-end justify-between gap-2 sm:gap-6 pt-2 relative h-[250px]">
-                    {/* Y-axis Labels (Frame 149: 55px x 211px) */}
+                    {/* Dynamic Y-axis Labels (Scaled to real data) */}
                     <div className="flex flex-col justify-between text-right text-xs sm:text-base font-normal text-white h-[211px] w-[45px] sm:w-[55px] shrink-0 select-none pb-7 font-['Lato',sans-serif] tracking-[-0.02em]">
-                      <span>100000</span>
-                      <span>50000</span>
-                      <span>10000</span>
-                      <span>1,000</span>
-                      <span>0</span>
+                      {currentYAxisLabels.map((lbl: string, i: number) => (
+                        <span key={i}>{lbl}</span>
+                      ))}
                     </div>
 
                     {/* 7 Bars (Graph of sale performance: 529px x 220px) */}
                     <div className="flex-1 flex items-end justify-between gap-1 sm:gap-3 h-[220px] relative">
-                      {currentRevenueData.map((bar, idx) => (
+                      {currentRevenueData.map((bar: any, idx: number) => (
                         <div key={idx} className="flex flex-col items-center justify-end h-full relative group">
                           
-                          {/* Tooltip Badge with downward polygon arrow (Figma 2020 & 2023 badges) */}
-                          {bar.showDefaultBadge && (
-                            <div className="absolute -top-1 sm:-top-2 flex flex-col items-center z-20 pointer-events-none">
-                              <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-[5.28px] bg-white/20 backdrop-blur-md text-[10px] sm:text-[11px] font-medium text-white text-center leading-[13px] sm:leading-[15px] font-['Manrope',sans-serif] shadow-lg whitespace-nowrap">
-                                <div>{bar.tooltip.split(" ")[0]}</div>
-                                <div className="text-[9px] sm:text-[10px] opacity-90">{bar.tooltip.split(" ")[1] || "Person"}</div>
-                              </div>
-                              {/* Downward Caret Polygon */}
-                              <svg width="12" height="7" viewBox="0 0 12 7" fill="none" className="-mt-[1px]">
-                                <path d="M6 7L0 0H12L6 7Z" fill="white" fillOpacity="0.25" />
-                              </svg>
+                          {/* Interactive hover tooltip */}
+                          <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-20 pointer-events-none">
+                            <div className="px-2 py-0.5 rounded-[5px] bg-white/20 backdrop-blur-md text-[10px] sm:text-[11px] font-medium text-white shadow-lg whitespace-nowrap font-['Manrope',sans-serif]">
+                              {bar.tooltip}
                             </div>
-                          )}
-
-                          {/* Interactive hover tooltip on other bars */}
-                          {!bar.showDefaultBadge && (
-                            <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-20 pointer-events-none">
-                              <div className="px-2 py-0.5 rounded-[5px] bg-white/20 backdrop-blur-md text-[10px] sm:text-[11px] font-medium text-white shadow-lg whitespace-nowrap font-['Manrope',sans-serif]">
-                                {bar.tooltip}
-                              </div>
-                              <svg width="10" height="5" viewBox="0 0 10 5" fill="none" className="-mt-[1px]">
-                                <path d="M5 5L0 0H10L5 5Z" fill="white" fillOpacity="0.25" />
-                              </svg>
-                            </div>
-                          )}
+                            <svg width="10" height="5" viewBox="0 0 10 5" fill="none" className="-mt-[1px]">
+                              <path d="M5 5L0 0H10L5 5Z" fill="white" fillOpacity="0.25" />
+                            </svg>
+                          </div>
 
                           {/* Bar (Rectangle 4: 55px width, 2px radius, gradient #2B7FFF to #4F39F6) */}
                           <div
@@ -949,8 +907,18 @@ export default function AdminDashboardPage() {
 
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-white">Users</span>
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#28F647]/20 border border-[#28F647] text-[#28F647] text-sm font-medium transition-all duration-300">
-                      <TrendingUp className="w-3.5 h-3.5" />
+                    <div
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-sm font-medium transition-all duration-300 ${
+                        currentGrowthData.growthRate?.startsWith("-")
+                          ? "bg-rose-500/20 border-rose-500 text-rose-400"
+                          : "bg-[#28F647]/20 border-[#28F647] text-[#28F647]"
+                      }`}
+                    >
+                      {currentGrowthData.growthRate?.startsWith("-") ? (
+                        <TrendingDown className="w-3.5 h-3.5" />
+                      ) : (
+                        <TrendingUp className="w-3.5 h-3.5" />
+                      )}
                       <span>{currentGrowthData.growthRate}</span>
                     </div>
                   </div>
@@ -1048,7 +1016,35 @@ export default function AdminDashboardPage() {
 
                   {/* Table Rows */}
                   <div className="divide-y divide-white/10">
-                    {filteredActivities.length === 0 ? (
+                    {isLoading ? (
+                      Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-full min-h-[68px] px-4 sm:px-6 flex items-center justify-between animate-pulse"
+                        >
+                          <div className="w-[180px] flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white/10 shrink-0" />
+                            <div className="h-4 bg-white/10 rounded w-24" />
+                          </div>
+                          <div className="w-[140px] hidden md:block">
+                            <div className="h-4 bg-white/10 rounded w-28" />
+                          </div>
+                          <div className="w-[110px] hidden sm:block">
+                            <div className="h-5 bg-white/10 rounded w-16" />
+                          </div>
+                          <div className="flex-1 px-2 flex flex-col gap-1.5">
+                            <div className="h-4 bg-white/10 rounded w-36" />
+                            <div className="h-3 bg-white/10 rounded w-48" />
+                          </div>
+                          <div className="w-[180px] hidden lg:block">
+                            <div className="h-4 bg-white/10 rounded w-32" />
+                          </div>
+                          <div className="w-[72px] flex justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-white/10" />
+                          </div>
+                        </div>
+                      ))
+                    ) : filteredActivities.length === 0 ? (
                       <div className="py-12 text-center text-[#D0D0D0] text-sm">
                         No matching activity records found. Try adjusting your search query or filter tab.
                       </div>

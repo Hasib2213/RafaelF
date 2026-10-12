@@ -36,36 +36,6 @@ interface UserActivityRow {
   email: string;
 }
 
-const FREE_MEMBERS: UserActivityRow[] = [
-  { id: "FR-001", dateTime: "08:30 PM, Jun 25, 2026", userType: "Free Member", name: "Alice Park", activityTitle: "New User Registered", activityDesc: "Alice Park joined as Free member", email: "alice.p@gmail.com" },
-  { id: "FR-002", dateTime: "09:15 AM, Jun 25, 2026", userType: "Free Member", name: "Michael Chen", activityTitle: "Video Processed", activityDesc: "AI Trends 2026.mp4 completed", email: "m.chen@outlook.com" },
-  { id: "FR-003", dateTime: "11:00 AM, Jun 25, 2026", userType: "Free Member", name: "David Kim", activityTitle: "Platform Review 4/5", activityDesc: "Added a review about the platform", rating: 4, email: "david.kim@tech.io" },
-  { id: "FR-004", dateTime: "02:45 PM, Jun 24, 2026", userType: "Free Member", name: "James Wilson", activityTitle: "Download", activityDesc: "Motive pro video was downloaded", email: "james.w@gmail.com" },
-  { id: "FR-005", dateTime: "05:30 PM, Jun 24, 2026", userType: "Free Member", name: "Mia Thompson", activityTitle: "Audio Played", activityDesc: "Morning Briefing audio played", email: "mia.t@yahoo.com" },
-  { id: "FR-006", dateTime: "10:20 AM, Jun 24, 2026", userType: "Free Member", name: "Liam Torres", activityTitle: "Added to Library", activityDesc: "Curio Intro video added to library", email: "liam.t@hotmail.com" },
-  { id: "FR-007", dateTime: "07:00 PM, Jun 23, 2026", userType: "Free Member", name: "Olivia Scott", activityTitle: "Platform Review 5/5", activityDesc: "Gave 5-star rating to the platform", rating: 5, email: "olivia.s@gmail.com" },
-];
-
-const PRO_MEMBERS: UserActivityRow[] = [
-  { id: "PR-001", dateTime: "08:30 PM, Jun 25, 2026", userType: "Pro Member", name: "Sarah Johnson", activityTitle: "New User Registered", activityDesc: "Sarah Johnson joined as Pro member", email: "sarah.j@gmail.com" },
-  { id: "PR-002", dateTime: "04:45 PM, Jun 24, 2026", userType: "Pro Member", name: "Lisa Anderson", activityTitle: "Subscription Upgrade", activityDesc: "Free to Pro plan upgraded", email: "lisa.a@gmail.com" },
-  { id: "PR-003", dateTime: "11:10 AM, Jun 24, 2026", userType: "Pro Member", name: "Ryan Mitchell", activityTitle: "Video Processed", activityDesc: "Product Demo 2026.mp4 completed", email: "ryan.m@promail.com" },
-  { id: "PR-004", dateTime: "03:30 PM, Jun 23, 2026", userType: "Pro Member", name: "Natalie Cole", activityTitle: "Platform Review 4/5", activityDesc: "Excellent analytics features", rating: 4, email: "natalie.c@outlook.com" },
-  { id: "PR-005", dateTime: "09:00 AM, Jun 23, 2026", userType: "Pro Member", name: "Ethan Rogers", activityTitle: "Audio Played", activityDesc: "Daily Digest episode played", email: "ethan.r@yahoo.com" },
-  { id: "PR-006", dateTime: "01:15 PM, Jun 22, 2026", userType: "Pro Member", name: "Chloe Warren", activityTitle: "Added to Library", activityDesc: "Pro webinar series added to library", email: "chloe.w@gmail.com" },
-  { id: "PR-007", dateTime: "06:45 PM, Jun 22, 2026", userType: "Pro Member", name: "Noah Phillips", activityTitle: "Download", activityDesc: "Advanced AI report downloaded", email: "noah.p@techcorp.io" },
-];
-
-const ENTERPRISE_MEMBERS: UserActivityRow[] = [
-  { id: "EN-001", dateTime: "10:30 AM, Jun 25, 2026", userType: "Enterprise Member", name: "Emma Watson", activityTitle: "Audio Played", activityDesc: "Morning Briefing audio played", email: "emma.w@company.org" },
-  { id: "EN-002", dateTime: "02:00 PM, Jun 24, 2026", userType: "Enterprise Member", name: "Sophia Taylor", activityTitle: "Added to Library", activityDesc: "Motive pro video was added to library", email: "sophia.t@gmail.com" },
-  { id: "EN-003", dateTime: "08:00 AM, Jun 24, 2026", userType: "Enterprise Member", name: "Marcus Webb", activityTitle: "Subscription Upgrade", activityDesc: "Pro to Enterprise plan upgraded", email: "marcus.w@enterprise.io" },
-  { id: "EN-004", dateTime: "05:00 PM, Jun 23, 2026", userType: "Enterprise Member", name: "Isabella Grant", activityTitle: "Video Processed", activityDesc: "Enterprise keynote 2026.mp4 done", email: "isabella.g@corp.com" },
-  { id: "EN-005", dateTime: "11:30 AM, Jun 23, 2026", userType: "Enterprise Member", name: "Alexander Ford", activityTitle: "Platform Review 5/5", activityDesc: "Outstanding enterprise dashboard", rating: 5, email: "alex.f@fortune500.com" },
-  { id: "EN-006", dateTime: "03:45 PM, Jun 22, 2026", userType: "Enterprise Member", name: "Victoria Hayes", activityTitle: "Download", activityDesc: "Q2 Analytics report downloaded", email: "victoria.h@bigco.com" },
-  { id: "EN-007", dateTime: "10:00 AM, Jun 22, 2026", userType: "Enterprise Member", name: "Benjamin Cruz", activityTitle: "New User Registered", activityDesc: "Benjamin Cruz joined as Enterprise", email: "ben.c@global.org" },
-];
-
 function UserTypeBadge({ type }: { type: PlanType }) {
   const cfg: Record<PlanType, { bg: string; text: string; label: string }> = {
     "Free Member": { bg: "bg-white/10 border border-white/20", text: "text-slate-200", label: "Free" },
@@ -197,21 +167,19 @@ export default function UserManagementPage() {
         const res = await adminApi.getUsers();
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
-          if (list.length > 0) {
-            const mapped: UserActivityRow[] = list.map((u: any) => ({
-              id: u.id,
-              dateTime: u.date_joined ? new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
-              userType: (u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member") as PlanType,
-              name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
-              activityTitle: u.is_suspended ? "Suspended" : "Active Member",
-              activityDesc: u.is_suspended ? (u.suspension_reason || "Account suspended") : `Joined as ${u.plan || "Free"} member`,
-              email: u.email,
-            }));
-            setApiUsers(mapped);
-          }
+          const mapped: UserActivityRow[] = list.map((u: any) => ({
+            id: u.id,
+            dateTime: u.date_joined ? new Date(u.date_joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
+            userType: (u.plan === "Pro" ? "Pro Member" : u.plan === "Enterprise" ? "Enterprise Member" : "Free Member") as PlanType,
+            name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
+            activityTitle: u.is_suspended ? "Suspended" : "Active Member",
+            activityDesc: u.is_suspended ? (u.suspension_reason || "Account suspended") : `Joined as ${u.plan || "Free"} member`,
+            email: u.email,
+          }));
+          setApiUsers(mapped);
         }
       } catch {
-        // Fallback to static mock data
+        if (isMounted) setApiUsers([]);
       }
     }
     loadUsers();
@@ -231,16 +199,8 @@ export default function UserManagementPage() {
   };
 
   const baseRows = useMemo<UserActivityRow[]>(() => {
-    if (apiUsers && apiUsers.length > 0) {
-      const filtered = apiUsers.filter((u) => u.userType === selectedPlanTab);
-      if (filtered.length > 0) return filtered;
-    }
-    const map: Record<PlanType, UserActivityRow[]> = {
-      "Free Member": FREE_MEMBERS,
-      "Pro Member": PRO_MEMBERS,
-      "Enterprise Member": ENTERPRISE_MEMBERS,
-    };
-    return map[selectedPlanTab];
+    if (!apiUsers) return [];
+    return apiUsers.filter((u) => u.userType === selectedPlanTab);
   }, [selectedPlanTab, apiUsers]);
 
   const filteredRows = useMemo(() => {
@@ -571,7 +531,7 @@ export default function UserManagementPage() {
                   <span className="font-['Lato'] font-normal text-[14px] text-center text-white">{rowsPerPage}</span>
                 </div>
                 <span className="font-['Lato'] font-medium text-[14px] text-white">
-                  Out of {filteredRows.length > 0 ? "145" : "0"}
+                  Out of {filteredRows.length}
                 </span>
               </div>
 

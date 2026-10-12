@@ -83,203 +83,9 @@ interface Review {
   isFeatured: boolean;
 }
 
-const MOCK_FEATURED: Review[] = [
-  {
-    id: 1,
-    name: "David Martinz",
-    subtitle: "Curio Changed the Way I Consume Content!",
-    avatar: "DM",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "I used to spend hours watching long YouTube videos. With Curio, I can get the key takeaways in minutes. The AI-generated audio briefings are clear, accurate, and incredibly helpful for staying informed on the go.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: true,
-  },
-  {
-    id: 2,
-    name: "Sarah Kim",
-    subtitle: "My Go-To Tool for Learning!",
-    avatar: "SK",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "As a student, Curio has been a lifesaver. Instead of rewatching lectures, I convert them into smart audio summaries and listen while commuting. It's like having a personal tutor that condenses everything for me!",
-    betterVersionTag: "Generate a better version",
-    isFeatured: true,
-  },
-  {
-    id: 3,
-    name: "Mark Johnson",
-    subtitle: "Perfect for Busy Professionals!",
-    avatar: "MJ",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "I manage a team and rarely have time for long-form video content. Curio lets me keep up with industry trends through concise, AI-powered summaries. It's a productivity game changer!",
-    betterVersionTag: "Generate a better version",
-    isFeatured: true,
-  },
-  {
-    id: 4,
-    name: "Emily Chen",
-    subtitle: "Brilliant Audio Experience!",
-    avatar: "EC",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "The audio quality and summarization accuracy of Curio are top-notch. I've tried other tools, but nothing compares to how seamlessly Curio converts video content into digestible audio briefings.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: true,
-  },
-];
+const MOCK_FEATURED: Review[] = [];
 
-const MOCK_COMMENTS: Review[] = [
-  {
-    id: 101,
-    name: "James Wilson",
-    subtitle: "Exactly What I Needed!",
-    avatar: "JW",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "Curio has completely transformed how I stay updated. The AI-generated audio briefings are spot-on, and I can listen during my morning run. Highly recommend it to anyone who values their time!",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 102,
-    name: "Lisa Park",
-    subtitle: "Amazing Time Saver!",
-    avatar: "LP",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "I'm a content creator and Curio helps me research faster than ever. Instead of watching hour-long videos, I get key insights in minutes. The quality of the summaries is impressive!",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 103,
-    name: "Robert Garcia",
-    subtitle: "Great for Commuters!",
-    avatar: "RG",
-    rating: 4,
-    summaryTag: "Great summary",
-    review:
-      "I spend 2 hours commuting daily. Curio has made that time so much more productive. I can listen to summarized content from YouTube channels I follow. The only improvement I'd suggest is adding playback speed controls.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 104,
-    name: "Anna Thompson",
-    subtitle: "Impressive AI Technology!",
-    avatar: "AT",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "The AI behind Curio is remarkable. It captures the essential points from videos with impressive accuracy. I've been recommending it to all my colleagues. Worth every penny of the subscription!",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 105,
-    name: "Chris Lee",
-    subtitle: "Solid Product, Minor Bugs",
-    avatar: "CL",
-    rating: 3,
-    summaryTag: "Great summary",
-    review:
-      "Overall a great product. I've experienced a few minor bugs with longer videos, but the team seems responsive and is constantly improving. The core functionality is excellent and I use it daily.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 106,
-    name: "Nina Patel",
-    subtitle: "Love the Audio Quality!",
-    avatar: "NP",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "The text-to-speech quality in Curio is surprisingly natural. It doesn't sound robotic at all. Combined with accurate summaries, it's become my favorite tool for consuming content efficiently.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 107,
-    name: "Tom Richards",
-    subtitle: "Better Than Expected!",
-    avatar: "TR",
-    rating: 4,
-    summaryTag: "Great summary",
-    review:
-      "I was skeptical at first, but Curio exceeded my expectations. The summaries are comprehensive yet concise. I especially love the enterprise features for our team collaboration needs.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 108,
-    name: "Maria Santos",
-    subtitle: "Essential for Research!",
-    avatar: "MS",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "As a researcher, I need to process vast amounts of video content. Curio has cut my research time in half. The accuracy of the AI-generated summaries is remarkable and consistently reliable.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 109,
-    name: "Kevin Wright",
-    subtitle: "Good but Room to Grow",
-    avatar: "KW",
-    rating: 3,
-    summaryTag: "Great summary",
-    review:
-      "Nice concept and execution. Would love to see more language support and integration with other platforms beyond YouTube. The core experience is smooth and the summaries are useful.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 110,
-    name: "Sofia Rossi",
-    subtitle: "Absolutely Fantastic!",
-    avatar: "SR",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "Curio is hands down the best content summarization tool I've used. The interface is clean, the summaries are accurate, and the audio quality is excellent. A must-have for anyone serious about productivity.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 111,
-    name: "Alex Turner",
-    subtitle: "Game Changer for Students!",
-    avatar: "AT",
-    rating: 5,
-    summaryTag: "Great summary",
-    review:
-      "Every student needs Curio. I convert my lecture recordings into concise summaries and review them before exams. It has genuinely improved my grades and study efficiency.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-  {
-    id: 112,
-    name: "Rachel Adams",
-    subtitle: "Perfect Companion App!",
-    avatar: "RA",
-    rating: 4,
-    summaryTag: "Great summary",
-    review:
-      "I use Curio alongside my regular YouTube watching. It's great for quickly recapping content I've already watched or previewing videos to decide if they're worth my full attention.",
-    betterVersionTag: "Generate a better version",
-    isFeatured: false,
-  },
-];
+const MOCK_COMMENTS: Review[] = [];
 
 type SortFilter = "stars-high" | "stars-low" | "enterprise";
 
@@ -418,6 +224,40 @@ function ReviewCard({
   );
 }
 
+function ReviewCardSkeleton() {
+  return (
+    <div
+      className="w-full rounded-2xl p-5 flex flex-col gap-4 border border-white/10 shadow-xl animate-pulse min-h-[220px]"
+      style={{
+        background:
+          "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43, 127, 255, 0.2) 0%, rgba(79, 57, 246, 0.2) 100%)",
+      }}
+    >
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="w-4 h-4 rounded-full bg-white/10" />
+        ))}
+      </div>
+      <div className="h-4 w-28 bg-white/10 rounded" />
+      <div className="space-y-2">
+        <div className="h-3.5 bg-white/10 rounded w-full" />
+        <div className="h-3.5 bg-white/10 rounded w-4/5" />
+      </div>
+      <div className="h-4 w-32 bg-white/10 rounded" />
+      <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white/10" />
+          <div className="space-y-1.5">
+            <div className="h-4 w-24 bg-white/10 rounded" />
+            <div className="h-3 w-32 bg-white/10 rounded" />
+          </div>
+        </div>
+        <div className="h-8 w-28 bg-white/10 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 /* ================================================================
    PAGE COMPONENT
 ================================================================ */
@@ -427,8 +267,9 @@ const ITEMS_PER_PAGE = 6;
 export default function UserReviewsPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [featuredReviews, setFeaturedReviews] = useState<Review[]>(MOCK_FEATURED);
-  const [visitorComments, setVisitorComments] = useState<Review[]>(MOCK_COMMENTS);
+  const [featuredReviews, setFeaturedReviews] = useState<Review[]>([]);
+  const [visitorComments, setVisitorComments] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<SortFilter>("stars-high");
   const [currentPage, setCurrentPage] = useState(1);
@@ -442,32 +283,36 @@ export default function UserReviewsPage() {
   useEffect(() => {
     let isMounted = true;
     async function loadReviews() {
+      setIsLoading(true);
       try {
         const res = await adminApi.getReviews();
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
-          if (list.length > 0) {
-            const mapped: Review[] = list.map((r: any) => ({
-              id: r.id,
-              name: r.user_name || "User",
-              subtitle: r.subtitle || r.briefing_title || "Platform Review",
-              avatar: (r.user_name || "U").slice(0, 2).toUpperCase(),
-              avatarUrl: r.user_avatar || r.user_avatar_url || r.user?.avatar_url || "",
-              rating: r.rating || 5,
-              summaryTag: r.summary_tag || "Great summary",
-              review: r.thoughts || "No comment provided.",
-              betterVersionTag: r.better_version_tag || "Feedback submitted",
-              isFeatured: !!r.is_featured,
-            }));
+          const mapped: Review[] = list.map((r: any) => ({
+            id: r.id,
+            name: r.user_name || "User",
+            subtitle: r.subtitle || r.briefing_title || "Platform Review",
+            avatar: (r.user_name || "U").slice(0, 2).toUpperCase(),
+            avatarUrl: r.user_avatar || r.user_avatar_url || r.user?.avatar_url || "",
+            rating: r.rating || 5,
+            summaryTag: r.summary_tag || "Great summary",
+            review: r.thoughts || "No comment provided.",
+            betterVersionTag: r.better_version_tag || "Feedback submitted",
+            isFeatured: !!r.is_featured,
+          }));
 
-            const featured = mapped.filter((r) => r.isFeatured);
-            const visitors = mapped.filter((r) => !r.isFeatured);
-            if (featured.length > 0) setFeaturedReviews(featured);
-            if (visitors.length > 0) setVisitorComments(visitors);
-          }
+          const featured = mapped.filter((r) => r.isFeatured);
+          const visitors = mapped.filter((r) => !r.isFeatured);
+          setFeaturedReviews(featured);
+          setVisitorComments(visitors);
         }
       } catch {
-        // Fallback to mock data
+        if (isMounted) {
+          setFeaturedReviews([]);
+          setVisitorComments([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
     loadReviews();
@@ -477,30 +322,44 @@ export default function UserReviewsPage() {
   }, []);
 
   const handleRemoveFeatured = async (id: number | string) => {
+    const review = featuredReviews.find((r) => r.id === id);
+    if (!review) return;
+
+    // Optimistically remove from featured and add to visitor comments
     setFeaturedReviews((prev) => prev.filter((r) => r.id !== id));
-    showToast("Review removed from featured.");
+    setVisitorComments((prev) => [{ ...review, isFeatured: false }, ...prev]);
+    showToast(`"${review.name}" review removed from featured.`);
+
     try {
       if (typeof id === "string") {
         await adminApi.toggleFeatureReview(id);
       }
     } catch {
-      // ignore
+      // Revert if API call fails
+      setFeaturedReviews((prev) => [...prev, review]);
+      setVisitorComments((prev) => prev.filter((r) => r.id !== id));
+      showToast("Failed to remove review from featured.");
     }
   };
 
   const handleAddToLandingPage = async (id: number | string) => {
     const review = visitorComments.find((r) => r.id === id);
-    if (review) {
-      setFeaturedReviews((prev) => [...prev, { ...review, isFeatured: true }]);
-      setVisitorComments((prev) => prev.filter((r) => r.id !== id));
-      showToast(`"${review.name}" review added to landing page!`);
-      try {
-        if (typeof id === "string") {
-          await adminApi.toggleFeatureReview(id);
-        }
-      } catch {
-        // ignore
+    if (!review) return;
+
+    // Optimistically remove from visitor comments and add to featured
+    setFeaturedReviews((prev) => [...prev, { ...review, isFeatured: true }]);
+    setVisitorComments((prev) => prev.filter((r) => r.id !== id));
+    showToast(`"${review.name}" review added to landing page!`);
+
+    try {
+      if (typeof id === "string") {
+        await adminApi.toggleFeatureReview(id);
       }
+    } catch {
+      // Revert if API call fails
+      setFeaturedReviews((prev) => prev.filter((r) => r.id !== id));
+      setVisitorComments((prev) => [review, ...prev]);
+      showToast("Failed to add review to landing page.");
     }
   };
 
@@ -765,12 +624,16 @@ export default function UserReviewsPage() {
 
             {/* 2x2 Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-              {featuredReviews.map((r) => (
-                <ReviewCard key={r.id} review={r} variant="featured" onAction={handleRemoveFeatured} />
-              ))}
+              {isLoading ? (
+                <ReviewCardSkeleton />
+              ) : (
+                featuredReviews.map((r) => (
+                  <ReviewCard key={r.id} review={r} variant="featured" onAction={handleRemoveFeatured} />
+                ))
+              )}
             </div>
 
-            {featuredReviews.length === 0 && (
+            {!isLoading && featuredReviews.length === 0 && (
               <div className="w-full py-12 flex items-center justify-center rounded-2xl border border-white/10" style={{ background: "rgba(43, 42, 125, 0.3)" }}>
                 <span className="font-['Lato'] text-[#A0AEC0] text-base">No featured reviews. Add reviews from below.</span>
               </div>
@@ -854,14 +717,20 @@ export default function UserReviewsPage() {
 
             {/* Comments Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-              <AnimatePresence mode="popLayout">
-                {paginatedComments.map((r) => (
-                  <ReviewCard key={r.id} review={r} variant="visitor" onAction={handleAddToLandingPage} />
-                ))}
-              </AnimatePresence>
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <ReviewCardSkeleton key={i} />
+                ))
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginatedComments.map((r) => (
+                    <ReviewCard key={r.id} review={r} variant="visitor" onAction={handleAddToLandingPage} />
+                  ))}
+                </AnimatePresence>
+              )}
             </div>
 
-            {paginatedComments.length === 0 && (
+            {!isLoading && paginatedComments.length === 0 && (
               <div className="w-full py-12 flex items-center justify-center rounded-2xl border border-white/10" style={{ background: "rgba(43, 42, 125, 0.3)" }}>
                 <span className="font-['Lato'] text-[#A0AEC0] text-base">No comments found.</span>
               </div>
