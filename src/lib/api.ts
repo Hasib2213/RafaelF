@@ -176,6 +176,27 @@ async function refreshAccessToken(): Promise<string | null> {
 
 interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
+  cacheTtl?: number; // In seconds. Only applies to GET requests
+}
+
+// Client-side in-memory cache and in-flight request deduplication
+interface ClientCacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+const clientMemoryCache = new Map<string, ClientCacheEntry<any>>();
+const inFlightRequests = new Map<string, Promise<any>>();
+
+export function invalidateClientCache(prefix?: string): void {
+  if (!prefix) {
+    clientMemoryCache.clear();
+    return;
+  }
+  for (const key of clientMemoryCache.keys()) {
+    if (key.includes(prefix)) {
+      clientMemoryCache.delete(key);
+    }
+  }
 }
 
 // Core fetch wrapper
@@ -183,65 +204,101 @@ export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { skipAuth = false, headers = {}, ...restOptions } = options;
+  const { skipAuth = false, cacheTtl, headers = {}, ...restOptions } = options;
+  const method = (restOptions.method || "GET").toUpperCase();
 
   const url = endpoint.startsWith("http")
     ? endpoint
     : `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
-  const requestHeaders = new Headers(headers);
+  const cacheKey = `${method}:${url}`;
 
-  // If not FormData, default to application/json
-  if (!(restOptions.body instanceof FormData) && !requestHeaders.has("Content-Type")) {
-    requestHeaders.set("Content-Type", "application/json");
-  }
+  // Check in-memory cache for valid cached response
+  if (cacheTtl && method === "GET") {
+    const cached = clientMemoryCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data as T;
+    }
 
-  // Attach token if needed
-  if (!skipAuth) {
-    const token = getAccessToken();
-    if (token) {
-      requestHeaders.set("Authorization", `Bearer ${token}`);
+    // Deduplicate in-flight requests
+    if (inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey) as Promise<T>;
     }
   }
 
-  let response = await fetch(url, {
-    ...restOptions,
-    headers: requestHeaders,
-  });
+  const executeFetch = async (): Promise<T> => {
+    const requestHeaders = new Headers(headers);
 
-  // Handle 401 Unauthorized (attempt refresh)
-  if (response.status === 401 && !skipAuth) {
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken().finally(() => {
-        refreshPromise = null;
+    // If not FormData, default to application/json
+    if (!(restOptions.body instanceof FormData) && !requestHeaders.has("Content-Type")) {
+      requestHeaders.set("Content-Type", "application/json");
+    }
+
+    // Attach token if needed
+    if (!skipAuth) {
+      const token = getAccessToken();
+      if (token) {
+        requestHeaders.set("Authorization", `Bearer ${token}`);
+      }
+    }
+
+    let response = await fetch(url, {
+      ...restOptions,
+      headers: requestHeaders,
+    });
+
+    // Handle 401 Unauthorized (attempt refresh)
+    if (response.status === 401 && !skipAuth) {
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      const newAccessToken = await refreshPromise;
+
+      if (newAccessToken) {
+        requestHeaders.set("Authorization", `Bearer ${newAccessToken}`);
+        response = await fetch(url, {
+          ...restOptions,
+          headers: requestHeaders,
+        });
+      }
+    }
+
+    // Parse response
+    const isJson = response.headers.get("content-type")?.includes("application/json");
+    const data = isJson ? await response.json() : await response.text();
+
+    if (!response.ok) {
+      const message = parseDjangoError(data, `Request failed with status ${response.status}`);
+      const cleanData =
+        typeof data === "string" && (data.includes("<!DOCTYPE html>") || data.includes("<html"))
+          ? { detail: message }
+          : data;
+      throw new ApiError(message, response.status, cleanData);
+    }
+
+    // Store in client memory cache if TTL configured
+    if (cacheTtl && method === "GET") {
+      clientMemoryCache.set(cacheKey, {
+        data: data as T,
+        expiry: Date.now() + cacheTtl * 1000,
       });
     }
 
-    const newAccessToken = await refreshPromise;
+    return data as T;
+  };
 
-    if (newAccessToken) {
-      requestHeaders.set("Authorization", `Bearer ${newAccessToken}`);
-      response = await fetch(url, {
-        ...restOptions,
-        headers: requestHeaders,
-      });
-    }
+  if (cacheTtl && method === "GET") {
+    const fetchPromise = executeFetch().finally(() => {
+      inFlightRequests.delete(cacheKey);
+    });
+    inFlightRequests.set(cacheKey, fetchPromise);
+    return fetchPromise;
   }
 
-  // Parse response
-  const isJson = response.headers.get("content-type")?.includes("application/json");
-  const data = isJson ? await response.json() : await response.text();
-
-  if (!response.ok) {
-    const message = parseDjangoError(data, `Request failed with status ${response.status}`);
-    const cleanData =
-      typeof data === "string" && (data.includes("<!DOCTYPE html>") || data.includes("<html"))
-        ? { detail: message }
-        : data;
-    throw new ApiError(message, response.status, cleanData);
-  }
-
-  return data as T;
+  return executeFetch();
 }
 
 // Auth API endpoints
@@ -402,7 +459,7 @@ export const briefingsApi = {
 // Creators API
 export const creatorsApi = {
   list: async (): Promise<PaginatedResponse<Creator> | Creator[]> => {
-    return apiClient("/api/creators/", { method: "GET" });
+    return apiClient("/api/creators/", { method: "GET", cacheTtl: 120 });
   },
 
   getFollowing: async (): Promise<Creator[]> => {
@@ -486,12 +543,24 @@ export const feedbackApi = {
     const res = await apiClient<any>("/api/feedback/my-feedback/", { method: "GET" });
     return Array.isArray(res) ? res : res.results || [];
   },
+
+  getFeatured: async (): Promise<any[]> => {
+    const res = await apiClient<any>("/api/feedback/featured/", {
+      method: "GET",
+      skipAuth: true,
+      cacheTtl: 180,
+    });
+    return Array.isArray(res) ? res : res.results || [];
+  },
 };
 
 // Subscriptions API
 export const subscriptionsApi = {
   getPlans: async (): Promise<SubscriptionPlan[]> => {
-    const res = await apiClient<any>("/api/subscriptions/plans/", { method: "GET" });
+    const res = await apiClient<any>("/api/subscriptions/plans/", {
+      method: "GET",
+      cacheTtl: 300,
+    });
     return Array.isArray(res) ? res : res.results || [];
   },
 
@@ -526,10 +595,12 @@ export const subscriptionsApi = {
   },
 };
 
+
+
 // Settings & Contact API
 export const settingsApi = {
   getSettings: async (): Promise<any> => {
-    return apiClient("/api/settings/", { method: "GET" });
+    return apiClient("/api/settings/", { method: "GET", cacheTtl: 300 });
   },
 
   sendContactMessage: async (
@@ -583,12 +654,14 @@ export const adminApi = {
   },
 
   toggleFeatureReview: async (reviewId: string): Promise<any> => {
+    invalidateClientCache("/api/feedback/");
     return apiClient(`/api/feedback/admin/reviews/${reviewId}/toggle-feature/`, {
       method: "POST",
     });
   },
 
   deleteReview: async (reviewId: string): Promise<any> => {
+    invalidateClientCache("/api/feedback/");
     return apiClient(`/api/feedback/admin/reviews/${reviewId}/`, {
       method: "DELETE",
     });
@@ -599,6 +672,7 @@ export const adminApi = {
   },
 
   updatePlatformSettings: async (data: Record<string, any>): Promise<any> => {
+    invalidateClientCache("/api/settings/");
     return apiClient("/api/settings/", {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -606,6 +680,7 @@ export const adminApi = {
   },
 
   updateSubscriptionPlan: async (planId: string, data: Record<string, any>): Promise<any> => {
+    invalidateClientCache("/api/subscriptions/");
     return apiClient(`/api/subscriptions/plans/${planId}/`, {
       method: "PATCH",
       body: JSON.stringify(data),

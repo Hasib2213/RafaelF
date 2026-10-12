@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Eye, EyeOff, Search } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
-import { authApi, adminApi } from "@/lib/api";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
+import { authApi, adminApi, resolveAvatarUrl } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -292,7 +293,8 @@ export default function AdminSettingsPage() {
 
   // Admin Info form state
   const [adminInfo, setAdminInfo] = useState<AdminInfo>(DEFAULT_ADMIN_INFO);
-  const [profileImage, setProfileImage] = useState<string | null>("/images/admin-avatar.jpg");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Password state
@@ -338,8 +340,9 @@ export default function AdminSettingsPage() {
             company: profile.company || "Orange Ltd",
             position: profile.position || "Product Manager",
           });
-          if (profile.avatar) {
-            setProfileImage(profile.avatar);
+          const resolved = resolveAvatarUrl(profile.avatar_url || profile.avatar);
+          if (resolved) {
+            setProfileImage(resolved);
           }
         }
       } catch {
@@ -475,6 +478,7 @@ export default function AdminSettingsPage() {
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
@@ -485,14 +489,26 @@ export default function AdminSettingsPage() {
 
   const handleSaveAdminInfo = async () => {
     try {
-      await authApi.updateProfile({
-        first_name: adminInfo.firstName,
-        last_name: adminInfo.lastName,
-        phone: adminInfo.phone,
-        address: adminInfo.address,
-        company: adminInfo.company,
-        position: adminInfo.position,
-      });
+      if (selectedAvatarFile) {
+        const formData = new FormData();
+        formData.append("avatar", selectedAvatarFile);
+        formData.append("first_name", adminInfo.firstName);
+        formData.append("last_name", adminInfo.lastName);
+        formData.append("phone", adminInfo.phone);
+        formData.append("address", adminInfo.address);
+        formData.append("company", adminInfo.company);
+        formData.append("position", adminInfo.position);
+        await authApi.updateProfile(formData);
+      } else {
+        await authApi.updateProfile({
+          first_name: adminInfo.firstName,
+          last_name: adminInfo.lastName,
+          phone: adminInfo.phone,
+          address: adminInfo.address,
+          company: adminInfo.company,
+          position: adminInfo.position,
+        });
+      }
       showToast("Admin info saved successfully!");
     } catch (err: any) {
       showToast(err?.message || "Admin info saved successfully!");
@@ -696,30 +712,7 @@ export default function AdminSettingsPage() {
 
           {/* Right: Admin Profile */}
           <div className="flex items-center gap-3 sm:gap-5">
-            <div
-              className="h-10 sm:h-11 px-2.5 sm:px-3 py-1 rounded-[8px] flex items-center gap-2 sm:gap-2.5 shrink-0 max-w-[140px] sm:max-w-none"
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md">
-                {profileImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profileImage} alt="Admin" className="w-full h-full object-cover" />
-                ) : (
-                  "AH"
-                )}
-              </div>
-              <div className="flex flex-col text-left min-w-0">
-                <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-white truncate -my-0.5">
-                  Abir Hos...
-                </span>
-                <span className="font-['Lato'] font-normal text-[12px] leading-[150%] text-[#D0D0D0]">
-                  Admin
-                </span>
-              </div>
-            </div>
+            <AdminProfileBadge />
           </div>
         </header>
 
@@ -834,7 +827,7 @@ export default function AdminSettingsPage() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white font-bold text-4xl sm:text-6xl">
-                            AH
+                            {adminInfo.firstName ? `${adminInfo.firstName[0] || ""}${adminInfo.lastName[0] || ""}`.toUpperCase() : "AH"}
                           </div>
                         )}
                       </div>

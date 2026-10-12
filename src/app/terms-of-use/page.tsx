@@ -12,17 +12,23 @@ export default function TermsOfUsePage() {
   const { user, isAuthenticated } = useAuth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [customTerms, setCustomTerms] = useState<string | null>(null);
+  const [contactEmail, setContactEmail] = useState("info@curio.com");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     async function loadTerms() {
+      setIsLoading(true);
       try {
         const s = await settingsApi.getSettings();
-        if (isMounted && s?.terms_of_use) {
-          setCustomTerms(s.terms_of_use);
+        if (isMounted) {
+          if (s?.terms_of_use) setCustomTerms(s.terms_of_use);
+          if (s?.email) setContactEmail(s.email);
         }
       } catch {
         // Fallback default
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
     loadTerms();
@@ -42,65 +48,34 @@ export default function TermsOfUsePage() {
 
       {/* Terms Content Body (Figma Frame 2147228289 / Frame 2147224985: Font: Inter 16px, line-height 150%) */}
       <div className="flex flex-col gap-6 font-['Inter',sans-serif] text-base text-white/95 leading-[150%] tracking-[-0.02em]">
-        {customTerms ? (
+        {isLoading ? (
+          <div className="flex flex-col gap-4 animate-pulse py-2">
+            <div className="h-5 bg-white/10 rounded w-3/4" />
+            <div className="h-4 bg-white/10 rounded w-full" />
+            <div className="h-4 bg-white/10 rounded w-5/6" />
+            <div className="h-4 bg-white/10 rounded w-full" />
+            <div className="h-6 bg-white/15 rounded w-1/3 mt-4" />
+            <div className="h-4 bg-white/10 rounded w-full" />
+            <div className="h-4 bg-white/10 rounded w-4/5" />
+            <div className="h-6 bg-white/15 rounded w-1/3 mt-4" />
+            <div className="h-4 bg-white/10 rounded w-full" />
+            <div className="h-4 bg-white/10 rounded w-3/4" />
+          </div>
+        ) : customTerms ? (
           <div className="whitespace-pre-line leading-relaxed text-white/90">
             {customTerms}
           </div>
         ) : (
-          <>
-            <p>
-              Welcome to Curio. These Terms of Use (&quot;Terms&quot;) govern your access to and use of our website, applications, audio synthesis tools, and artificial intelligence briefing services (collectively, the &quot;Service&quot;). By creating an account, accessing, or using Curio, you signify your agreement to be bound by these Terms and our Privacy Policy. If you do not agree with any part of these Terms, you must discontinue your use of our Service immediately.
-            </p>
-
-            <p>
-              Curio provides automated, AI-generated analytical summaries and synthesized audio briefings derived from publicly available digital video content. All content is processed for informational, educational, and accessibility enhancement purposes. We do not claim ownership of any third-party video, audio, or intellectual property from which summaries are generated; all original media copyrights remain exclusively with their respective creators and copyright holders.
-            </p>
-
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold text-white font-['Lato',sans-serif] tracking-normal">
-                1. Permitted Use and User Responsibilities
-              </h2>
-              <p>
-                You agree to use Curio solely for lawful personal or internal productivity purposes. You may not reverse-engineer, scrape, bulk-extract, or redistribute Curio&apos;s synthesized audio assets, algorithms, or API endpoints without prior express written authorization. You are solely responsible for safeguarding the credentials associated with your account and for all activities conducted thereunder.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold text-white font-['Lato',sans-serif] tracking-normal">
-                2. Subscriptions, Billing, and Cancellations
-              </h2>
-              <p>
-                Certain premium tiers and features require an active paid subscription. Subscription fees are billed on a recurring monthly or annual basis, as selected at checkout. You may cancel your subscription at any time through your Profile dashboard; cancellation will take effect at the conclusion of your current billing cycle. All payments processed are non-refundable except where mandated by applicable consumer protection laws.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold text-white font-['Lato',sans-serif] tracking-normal">
-                3. Service Availability and Limitation of Liability
-              </h2>
-              <p>
-                While Curio strives to maintain uninterrupted availability and maximum summarization accuracy, the Service is delivered on an &quot;as is&quot; and &quot;as available&quot; basis. In no event shall Curio, its directors, employees, or partners be liable for any indirect, consequential, incidental, or punitive damages resulting from your use or inability to use the service, third-party platform API interruptions, or inaccuracies in algorithmic transcriptions.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold text-white font-['Lato',sans-serif] tracking-normal">
-                4. Amendments to Terms
-              </h2>
-              <p>
-                We reserve the right to revise or replace these Terms at our discretion. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the updated terms.
-              </p>
-            </div>
-
-            <p className="text-sm text-[#D0D0D0] pt-4 border-t border-white/10">
-              Last updated: January 2026. For questions or legal inquiries regarding these Terms of Use, please reach out via our{" "}
-              <a href="/contact-us" className="text-cyan-300 underline hover:text-white transition-colors">
-                Contact Us
-              </a>{" "}
-              page or email us directly at info@curio.com.
-            </p>
-          </>
+          <p className="text-[#D0D0D0]">No Terms of Use content available.</p>
         )}
+
+        <p className="text-sm text-[#D0D0D0] pt-4 border-t border-white/10">
+          Last updated: January 2026. For questions or legal inquiries regarding these Terms of Use, please reach out via our{" "}
+          <a href="/contact-us" className="text-cyan-300 underline hover:text-white transition-colors">
+            Contact Us
+          </a>{" "}
+          page or email us directly at {contactEmail}.
+        </p>
       </div>
     </div>
   );

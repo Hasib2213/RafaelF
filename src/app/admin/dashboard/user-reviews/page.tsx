@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import { adminApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
@@ -721,27 +722,7 @@ export default function UserReviewsPage() {
 
           {/* Right: Admin Profile */}
           <div className="flex items-center gap-3 sm:gap-5">
-            <div
-              className="h-11 px-3 py-1 rounded-[8px] flex items-center gap-2.5"
-              style={{
-                width: "135px",
-                background: "rgba(255,255,255,0.2)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/admin-avatar.jpg" alt="Admin" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col text-left min-w-0">
-                <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-white truncate -my-0.5">
-                  Abir Hossain
-                </span>
-                <span className="font-['Lato'] font-normal text-[12px] leading-[150%] text-[#D0D0D0]">
-                  Admin
-                </span>
-              </div>
-            </div>
+            <AdminProfileBadge />
           </div>
         </header>
 

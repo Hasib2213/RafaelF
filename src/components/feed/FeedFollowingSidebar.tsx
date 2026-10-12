@@ -3,57 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Users, Loader2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { creatorsApi } from "@/lib/api";
-import { Creator } from "@/lib/types/api";
-
-const DEFAULT_CHANNELS = [
-  {
-    id: "1",
-    name: "Motiversity",
-    subscribers: "4.11M subscribers",
-    avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-    avatar_gradient: "from-purple-600 to-indigo-600",
-    initials: "M",
-    handle: "@motiversity",
-  },
-  {
-    id: "2",
-    name: "Huberman Lab",
-    subscribers: "5.82M subscribers",
-    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    avatar_gradient: "from-blue-600 to-cyan-600",
-    initials: "HL",
-    handle: "@hubermanlab",
-  },
-  {
-    id: "3",
-    name: "Lex Fridman",
-    subscribers: "4.29M subscribers",
-    avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    avatar_gradient: "from-zinc-700 to-zinc-900",
-    initials: "LF",
-    handle: "@lexfridman",
-  },
-  {
-    id: "4",
-    name: "Ali Abdaal",
-    subscribers: "5.45M subscribers",
-    avatar_url: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
-    avatar_gradient: "from-emerald-500 to-teal-700",
-    initials: "AA",
-    handle: "@aliabdaal",
-  },
-  {
-    id: "5",
-    name: "TED Talks",
-    subscribers: "24.1M subscribers",
-    avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    avatar_gradient: "from-red-600 to-rose-700",
-    initials: "TED",
-    handle: "@tedtalks",
-  },
-];
 
 function SidebarChannelAvatar({
   name,
@@ -74,6 +25,7 @@ function SidebarChannelAvatar({
           src={avatarUrl}
           alt={name}
           fill
+          unoptimized
           className="object-cover"
           onError={() => setHasError(true)}
         />
@@ -90,8 +42,8 @@ function SidebarChannelAvatar({
 }
 
 export default function FeedFollowingSidebar() {
-  const [channels, setChannels] = useState<any[]>(DEFAULT_CHANNELS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchChannels = async () => {
@@ -107,11 +59,10 @@ export default function FeedFollowingSidebar() {
           const all = await creatorsApi.list();
           list = Array.isArray(all) ? all : all.results || [];
         }
-        if (list && list.length > 0) {
-          setChannels(list);
-        }
+        setChannels(list || []);
       } catch (err) {
         console.error("Failed to fetch channels:", err);
+        setChannels([]);
       } finally {
         setIsLoading(false);
       }
@@ -137,9 +88,24 @@ export default function FeedFollowingSidebar() {
 
       {/* Channels List */}
       <div className="flex flex-col gap-1.5 overflow-y-auto pr-1">
-        {isLoading && channels.length === 0 ? (
-          <div className="flex items-center justify-center p-8 text-white/60">
-            <Loader2 className="w-5 h-5 animate-spin" />
+        {isLoading ? (
+          <div className="flex flex-col gap-2 p-1">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="w-full h-14 p-2 rounded-lg flex items-center gap-2.5 animate-pulse bg-white/5"
+              >
+                <div className="w-10 h-10 rounded-full bg-white/10 shrink-0" />
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  <div className="h-3.5 bg-white/10 rounded w-24" />
+                  <div className="h-2.5 bg-white/10 rounded w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : channels.length === 0 ? (
+          <div className="p-4 text-center text-xs text-[#D0D0D0]/70 font-['Lato',sans-serif]">
+            No creators followed yet.
           </div>
         ) : (
           channels.map((channel) => {

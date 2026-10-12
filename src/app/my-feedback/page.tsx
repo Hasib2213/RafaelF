@@ -104,14 +104,23 @@ export default function MyFeedbackPage() {
           const mapped: FeedbackCardData[] = res.map((fb: any) => ({
             id: fb.id,
             title: fb.briefing_title || fb.briefing?.title || "Video Briefing Feedback",
-            thumbnail: fb.briefing_thumbnail || fb.briefing?.thumbnail || "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
-            duration: fb.briefing_duration || "08:00",
+            thumbnail:
+              fb.thumbnail ||
+              fb.briefing_thumbnail ||
+              fb.briefing?.thumbnail_url ||
+              fb.briefing?.thumbnail ||
+              "/images/summary.png",
+            duration: fb.duration || fb.briefing_duration || fb.briefing?.duration || "10:00",
             rating: fb.rating || 5,
             maxRating: 5,
             usefulFeedback: fb.useful_feedback || "Helpful",
             thoughts: fb.thoughts || "",
-            requestOption: fb.request_improved ? "Request an improved version" : "Feedback submitted",
-            channelName: fb.creator_name || "Curio Creator",
+            requestOption: fb.request_option || (fb.request_improved ? "Request an improved version" : "Feedback submitted"),
+            channelName: fb.channel_name || fb.creator_name || fb.briefing?.creator?.name || "Curio Creator",
+            audioUrl: fb.audio_url || fb.briefing?.audio_url || "",
+            summary: fb.summary || fb.briefing?.summary || fb.thoughts || "",
+            fullSummary: fb.full_summary || fb.briefing?.full_summary || fb.thoughts || "",
+            keyTakeaways: fb.key_takeaways || fb.briefing?.key_takeaways || [],
           }));
           setFeedbacks(mapped);
         } else if (isMounted) {
@@ -145,13 +154,14 @@ export default function MyFeedbackPage() {
       title: item.title,
       duration: item.duration,
       thumbnail: item.thumbnail,
+      audioUrl: item.audioUrl || "",
       channelName: item.channelName || "Curio Creator",
       subscribers: "1.2M",
       channelAvatarColor: "bg-blue-600",
-      channelInitials: "CC",
-      summary: item.thoughts,
-      fullSummary: item.thoughts,
-      keyTakeaways: ["Actionable insight", "Clear presentation"],
+      channelInitials: item.channelName?.slice(0, 2).toUpperCase() || "CC",
+      summary: item.summary || item.thoughts,
+      fullSummary: item.fullSummary || item.thoughts,
+      keyTakeaways: item.keyTakeaways && item.keyTakeaways.length > 0 ? item.keyTakeaways : ["Actionable insight", "Clear presentation"],
     });
   };
 

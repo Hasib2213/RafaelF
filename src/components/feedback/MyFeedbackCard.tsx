@@ -16,6 +16,10 @@ export interface FeedbackCardData {
   channelName?: string;
   channelAvatar?: string;
   videoUrl?: string;
+  audioUrl?: string;
+  summary?: string;
+  fullSummary?: string;
+  keyTakeaways?: string[];
 }
 
 interface MyFeedbackCardProps {
@@ -32,6 +36,9 @@ export default function MyFeedbackCard({ item, onPlayAudio }: MyFeedbackCardProp
           src={item.thumbnail}
           alt={item.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/images/summary.png";
+          }}
         />
 
         {/* Duration Badge (Figma Frame 2147239871: 43px x 26px, top 10px, right 10px) */}

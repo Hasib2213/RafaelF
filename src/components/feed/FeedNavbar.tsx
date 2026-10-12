@@ -77,7 +77,7 @@ export default function FeedNavbar({
 
   const displayName = user
     ? user.full_name || `${user.first_name} ${user.last_name}`.trim() || user.email.split("@")[0]
-    : "Abir Hossain";
+    : "";
 
   const displaySubtitle = user
     ? user.role === "admin"

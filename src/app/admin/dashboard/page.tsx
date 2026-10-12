@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "@/lib/api";
 
@@ -638,16 +639,7 @@ export default function AdminDashboardPage() {
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
 
-              <div className="flex items-center justify-center px-2 py-1 rounded-lg bg-white/20 border border-white/10 gap-2 sm:gap-3">
-                {/* 32px Avatar */}
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center font-bold text-xs text-white shadow-md shrink-0">
-                  AH
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-sm font-medium text-white leading-tight truncate max-w-[90px] sm:max-w-none">{adminUser.name}</span>
-                  <span className="text-[11px] sm:text-[12px] text-[#D0D0D0] leading-tight font-normal">{adminUser.role}</span>
-                </div>
-              </div>
+              <AdminProfileBadge />
             </div>
           </header>
 

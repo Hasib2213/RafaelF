@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -416,20 +417,7 @@ export default function AllUsersPage() {
           </span>
 
           {/* Profile badge */}
-          <div
-            className="h-11 rounded-[8px] px-2 py-1 flex items-center gap-2 shrink-0"
-            style={{ width: "135px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center font-bold text-xs text-white shadow-md shrink-0">
-              AH
-            </div>
-            <div className="flex flex-col text-left min-w-0">
-              <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-white truncate -my-0.5">
-                Abir Hossain
-              </span>
-              <span className="font-['Lato'] font-normal text-[12px] leading-[150%] text-[#D0D0D0]">Admin</span>
-            </div>
-          </div>
+          <AdminProfileBadge />
         </header>
 
         {/* Main Body (Frame 2147240223: 1152px x 1180px container) */}

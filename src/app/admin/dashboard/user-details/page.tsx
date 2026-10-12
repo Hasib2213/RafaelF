@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import { adminApi, subscriptionsApi } from "@/lib/api";
 import {
   SuspendUserIcon,
@@ -423,15 +424,7 @@ function UserDetailsContent() {
 
           {/* Right: Admin Profile Badge */}
           <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-            <div className="h-10 sm:h-11 px-2.5 sm:px-3 py-1 rounded-lg bg-white/20 flex items-center gap-2 sm:gap-2.5 border border-white/10">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-white/40 bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD] flex items-center justify-center text-white font-bold text-xs shrink-0">
-                AH
-              </div>
-              <div className="flex flex-col">
-                <span className="font-['Lato'] font-medium text-xs sm:text-sm text-white leading-tight">Abir Hossain</span>
-                <span className="font-['Lato'] font-normal text-[11px] sm:text-xs text-[#D0D0D0] leading-tight">Admin</span>
-              </div>
-            </div>
+            <AdminProfileBadge />
           </div>
         </header>
 

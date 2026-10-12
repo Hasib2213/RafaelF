@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, CheckCircle2, Globe, FileText, Shield, Loader2 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
+import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import { adminApi, settingsApi } from "@/lib/api";
 import {
   SideNavDashboardIcon,
@@ -35,33 +36,37 @@ const DEFAULT_SITE_INFO: SiteInfoState = {
   instagram: "Abir",
 };
 
-const DEFAULT_TERMS = `Welcome to Curio. By accessing or using our website, applications, and services (the "Platform"), you agree to be bound by these Terms of Use.
+const DEFAULT_TERMS = `Welcome to Curio. These Terms of Use ("Terms") govern your access to and use of our website, applications, audio synthesis tools, and artificial intelligence briefing services (collectively, the "Service"). By creating an account, accessing, or using Curio, you signify your agreement to be bound by these Terms and our Privacy Policy. If you do not agree with any part of these Terms, you must discontinue your use of our Service immediately.
 
-1. Account Registration & Security
-Users must provide accurate, current, and complete information during registration. You are responsible for safeguarding your login credentials and for all activities under your account.
+Curio provides automated, AI-generated analytical summaries and synthesized audio briefings derived from publicly available digital video content. All content is processed for informational, educational, and accessibility enhancement purposes. We do not claim ownership of any third-party video, audio, or intellectual property from which summaries are generated; all original media copyrights remain exclusively with their respective creators and copyright holders.
 
-2. Content & Fair Usage
-Curio converts video content into smart audio briefings for personal and non-commercial informational use. Users agree not to misuse, scrape, reverse-engineer, or attempt unauthorized access to platform infrastructure.
+1. Permitted Use and User Responsibilities
+You agree to use Curio solely for lawful personal or internal productivity purposes. You may not reverse-engineer, scrape, bulk-extract, or redistribute Curio's synthesized audio assets, algorithms, or API endpoints without prior express written authorization. You are solely responsible for safeguarding the credentials associated with your account and for all activities conducted thereunder.
 
-3. Subscription & Billing
-Subscription plans (Monthly and Yearly) provide access to premium audio generation, extended summaries, and dedicated tools. Fees are billed in advance on a recurring schedule until cancelled by the user.
+2. Subscriptions, Billing, and Cancellations
+Certain premium tiers and features require an active paid subscription. Subscription fees are billed on a recurring monthly or annual basis, as selected at checkout. You may cancel your subscription at any time through your Profile dashboard; cancellation will take effect at the conclusion of your current billing cycle. All payments processed are non-refundable except where mandated by applicable consumer protection laws.
 
-4. Termination & Policy Updates
-We reserve the right to suspend or terminate accounts that violate our community guidelines or security protocols. These terms may be updated periodically with notice.`;
+3. Service Availability and Limitation of Liability
+While Curio strives to maintain uninterrupted availability and maximum summarization accuracy, the Service is delivered on an "as is" and "as available" basis. In no event shall Curio, its directors, employees, or partners be liable for any indirect, consequential, incidental, or punitive damages resulting from your use or inability to use the service, third-party platform API interruptions, or inaccuracies in algorithmic transcriptions.
 
-const DEFAULT_PRIVACY = `At Curio, your privacy is a paramount priority. This Privacy Policy outlines our practices regarding data collection, usage, and security.
+4. Amendments to Terms
+We reserve the right to revise or replace these Terms at our discretion. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the updated terms.`;
+
+const DEFAULT_PRIVACY = `At Curio, accessible from curio.ai and our associated applications, one of our main priorities is the privacy of our visitors and registered users. This Privacy Policy document outlines the types of information that is collected and recorded by Curio, how we utilize and safeguard it, and your rights concerning your personal data.
+
+We believe in complete transparency and minimal data retention. When you use our audio synthesis, AI briefing, and YouTube video summarization services, we only collect information strictly required to generate high-quality audio briefings, maintain account preferences, and facilitate secure subscription transactions.
 
 1. Information We Collect
-We collect personal information such as name, email address, payment identifiers (handled securely via third-party gateways), and usage preferences when you interact with our audio conversion tools.
+We collect personal information that you voluntarily provide to us when registering, such as your full name, email address, password hash, and account profile picture. For paid subscriptions, billing information is handled directly through certified, PCI-compliant third-party payment gateways; Curio never stores raw credit card details on our servers.
 
-2. How We Use Information
-We utilize gathered data to deliver generated audio summaries, personalize recommendations, improve system performance, and provide prompt customer support.
+2. How We Use Your Information
+We process your personal information to deliver, operate, and maintain our core briefing services; personalize your feeds based on creators you follow; generate high-quality text-to-speech audio files; process billing transactions; and provide customer support. We may also analyze aggregated, non-personally identifiable usage statistics to improve AI model summarization quality.
 
-3. Data Sharing & Third Parties
-Curio does not sell or lease user data to third parties. Data is only shared with trusted service providers necessary for essential platform operation, such as cloud infrastructure and payment processing.
+3. Data Sharing, AI Processing, and Third-Party Services
+Curio does not sell, trade, or rent personal user identification to marketing advertisers or third parties. We only share data with infrastructure providers strictly necessary to operate our service (e.g. cloud hosting, database management, and content delivery networks). AI processing of video transcripts is conducted securely and is never used to train third-party public models with your private feedback.
 
-4. User Rights & Controls
-You have the right to review, update, or request the deletion of your personal data at any time through account settings or by contacting our support team.`;
+4. Data Retention, Security, and Your Rights
+We implement rigorous administrative, technical, and physical safeguards to protect your personal data from unauthorized access, alteration, or disclosure. Depending on your jurisdiction, you have the right to request access to your personal information, request rectification of inaccurate records, request deletion of your account and associated briefing history, or restrict processing. You can exercise these rights at any time directly through your profile settings or by contacting our team.`;
 
 export default function PlatformSettingPage() {
   const [activeTab, setActiveTab] = useState<"contact" | "terms" | "privacy">("contact");
@@ -385,26 +390,7 @@ export default function PlatformSettingPage() {
 
           {/* Right: Admin Profile */}
           <div className="flex items-center gap-3 sm:gap-5">
-            <div
-              className="h-11 px-3 py-1 rounded-[8px] flex items-center gap-2.5"
-              style={{
-                width: "135px",
-                background: "rgba(255,255,255,0.2)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40 bg-gradient-to-tr from-[#3E8AFB] to-[#9369FD] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-md">
-                AH
-              </div>
-              <div className="flex flex-col text-left min-w-0">
-                <span className="font-['Lato'] font-medium text-[14px] leading-[150%] text-white truncate -my-0.5">
-                  Abir Hossain
-                </span>
-                <span className="font-['Lato'] font-normal text-[12px] leading-[150%] text-[#D0D0D0]">
-                  Admin
-                </span>
-              </div>
-            </div>
+            <AdminProfileBadge />
           </div>
         </header>
 

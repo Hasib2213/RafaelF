@@ -428,7 +428,7 @@ export default function FeedPage() {
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const userGreetingName = user?.first_name || (user?.full_name ? user.full_name.split(" ")[0] : "Abir");
+  const userGreetingName = user?.first_name || (user?.full_name ? user.full_name.split(" ")[0] : "");
 
   return (
     <ProtectedRoute>
@@ -456,7 +456,7 @@ export default function FeedPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight font-['Lato',sans-serif]">
-                Welcome back, {userGreetingName}! 👋
+                Welcome back{userGreetingName ? `, ${userGreetingName}` : ""}! 👋
               </h1>
               <p className="text-sm sm:text-base text-[#D0D0D0] mt-1 font-['Lato',sans-serif]">
                 {activeTab === "daily"
