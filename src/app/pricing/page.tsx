@@ -78,6 +78,11 @@ export default function InAppPricingPage() {
           const mapped: PlanConfig[] = fetched.map((p: any) => {
             const rawPrice = parseFloat(p.price || "0");
             const priceFormatted = rawPrice % 1 === 0 ? `$${rawPrice.toFixed(0)}` : `$${rawPrice.toFixed(2)}`;
+            const rawFeatures = Array.isArray(p.features)
+              ? p.features
+              : typeof p.features === "string"
+              ? p.features.split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+              : [];
             return {
               id: p.slug || p.id,
               name: p.name,
@@ -86,7 +91,7 @@ export default function InAppPricingPage() {
               badgeText: p.badge_text || undefined,
               isPopular: !!p.is_popular,
               isHighlighted: !!p.is_best_offer,
-              features: Array.isArray(p.features) ? p.features : [],
+              features: rawFeatures,
               buttonText: p.slug === "free" ? "Apply Now" : `Apply for ${p.name}`,
               buttonHref: `/checkout?plan=${p.slug || p.id}&plan_id=${p.id}`,
             };

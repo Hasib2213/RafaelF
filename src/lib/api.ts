@@ -618,11 +618,21 @@ export const settingsApi = {
 
 // Admin Users API
 export const adminApi = {
-  getUsers: async (params?: { search?: string; role?: string; page?: number }): Promise<any> => {
+  getUsers: async (params?: {
+    search?: string;
+    role?: string;
+    page?: number;
+    page_size?: number;
+    suspended?: string;
+    plan?: string;
+  }): Promise<any> => {
     const query = new URLSearchParams();
     if (params?.search) query.set("search", params.search);
     if (params?.role) query.set("role", params.role);
     if (params?.page) query.set("page", params.page.toString());
+    if (params?.page_size) query.set("page_size", params.page_size.toString());
+    if (params?.suspended) query.set("suspended", params.suspended);
+    if (params?.plan) query.set("plan", params.plan);
     const qs = query.toString();
     return apiClient(`/api/auth/admin/users/${qs ? `?${qs}` : ""}`, {
       method: "GET",

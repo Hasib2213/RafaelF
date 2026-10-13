@@ -148,7 +148,7 @@ function SidebarContent({ onClose, onLogoutRequest }: { onClose?: () => void; on
 
 export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPlanTab, setSelectedPlanTab] = useState<PlanType>("Free Member");
+  const [selectedPlanTab, setSelectedPlanTab] = useState<PlanType | "All">("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(10);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -159,12 +159,25 @@ export default function UserManagementPage() {
   const [newMemberPlan, setNewMemberPlan] = useState<PlanType>("Pro Member");
   const [extraRows, setExtraRows] = useState<UserActivityRow[]>([]);
   const [apiUsers, setApiUsers] = useState<UserActivityRow[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    totalSubscribers: number;
+    freeUsers: number;
+    proUsers: number;
+    enterpriseUsers: number;
+  }>({
+    totalSubscribers: 0,
+    freeUsers: 0,
+    proUsers: 0,
+    enterpriseUsers: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
     async function loadUsers() {
+      setIsLoading(true);
       try {
-        const res = await adminApi.getUsers();
+        const res = await adminApi.getUsers({ page_size: 100 });
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
           const mapped: UserActivityRow[] = list.map((u: any) => ({
@@ -177,9 +190,30 @@ export default function UserManagementPage() {
             email: u.email,
           }));
           setApiUsers(mapped);
+
+          if (res.stats) {
+            setStats({
+              totalSubscribers: res.stats.total_subscribers || 0,
+              freeUsers: res.stats.free_users || 0,
+              proUsers: res.stats.pro_users || 0,
+              enterpriseUsers: res.stats.enterprise_users || 0,
+            });
+          } else {
+            const freeCount = list.filter((u: any) => (u.plan || "").toLowerCase() === "free").length;
+            const proCount = list.filter((u: any) => (u.plan || "").toLowerCase() === "pro").length;
+            const entCount = list.filter((u: any) => (u.plan || "").toLowerCase() === "enterprise").length;
+            setStats({
+              totalSubscribers: list.length,
+              freeUsers: freeCount,
+              proUsers: proCount,
+              enterpriseUsers: entCount,
+            });
+          }
         }
       } catch {
         if (isMounted) setApiUsers([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
     loadUsers();
@@ -200,12 +234,16 @@ export default function UserManagementPage() {
 
   const baseRows = useMemo<UserActivityRow[]>(() => {
     if (!apiUsers) return [];
+    if (selectedPlanTab === "All") return apiUsers;
     return apiUsers.filter((u) => u.userType === selectedPlanTab);
   }, [selectedPlanTab, apiUsers]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    const all = [...extraRows.filter((r) => r.userType === selectedPlanTab), ...baseRows];
+    const extraFiltered = selectedPlanTab === "All"
+      ? extraRows
+      : extraRows.filter((r) => r.userType === selectedPlanTab);
+    const all = [...extraFiltered, ...baseRows];
     if (!q) return all;
     return all.filter((r) =>
       r.name.toLowerCase().includes(q) ||
@@ -215,6 +253,17 @@ export default function UserManagementPage() {
       r.dateTime.toLowerCase().includes(q)
     );
   }, [baseRows, extraRows, selectedPlanTab, searchQuery]);
+
+  // Reset to page 1 whenever filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedPlanTab, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredRows.slice(start, start + rowsPerPage);
+  }, [filteredRows, currentPage, rowsPerPage]);
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,6 +278,13 @@ export default function UserManagementPage() {
       email: newMemberEmail.trim(),
     };
     setExtraRows((prev) => [newRow, ...prev]);
+    setStats((prev) => ({
+      ...prev,
+      totalSubscribers: prev.totalSubscribers + 1,
+      freeUsers: newMemberPlan === "Free Member" ? prev.freeUsers + 1 : prev.freeUsers,
+      proUsers: newMemberPlan === "Pro Member" ? prev.proUsers + 1 : prev.proUsers,
+      enterpriseUsers: newMemberPlan === "Enterprise Member" ? prev.enterpriseUsers + 1 : prev.enterpriseUsers,
+    }));
     setNewMemberName("");
     setNewMemberEmail("");
     setShowAddModal(false);
@@ -238,7 +294,8 @@ export default function UserManagementPage() {
   const gridCols = "grid-cols-[180px_137px_120px_239px_180px_72px]";
   const sidebarBg = "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43,127,255,0.2) 0%, rgba(79,57,246,0.2) 100%)";
 
-  const tabs: { key: PlanType; label: string; shortLabel: string }[] = [
+  const tabs: { key: PlanType | "All"; label: string; shortLabel: string }[] = [
+    { key: "All", label: "All Members", shortLabel: "All" },
     { key: "Free Member", label: "Free Members", shortLabel: "Free" },
     { key: "Pro Member", label: "Pro Members", shortLabel: "Pro" },
     { key: "Enterprise Member", label: "Enterprise Members", shortLabel: "Enterprise" },
@@ -321,10 +378,10 @@ export default function UserManagementPage() {
           {/* Stat cards — 1 col mobile / 2 col sm / 4 col xl */}
           <section className="w-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[
-              { amount: "10,000", label: "Total Subscribers" },
-              { amount: "22,000", label: "Total Free Users" },
-              { amount: "10,000", label: "Total Pro Users" },
-              { amount: "12,802", label: "Total Enterprise Users" },
+              { amount: stats.totalSubscribers.toLocaleString(), label: "Total Subscribers" },
+              { amount: stats.freeUsers.toLocaleString(), label: "Total Free Users" },
+              { amount: stats.proUsers.toLocaleString(), label: "Total Pro Users" },
+              { amount: stats.enterpriseUsers.toLocaleString(), label: "Total Enterprise Users" },
             ].map(({ amount, label }) => (
               <div
                 key={label}
@@ -335,9 +392,13 @@ export default function UserManagementPage() {
                 }}
               >
                 <div className="w-full flex items-center justify-between">
-                  <span className="font-['Lato'] font-medium text-[24px] lg:text-[32px] leading-[130%] tracking-[-0.02em] text-white">
-                    {amount}
-                  </span>
+                  {isLoading ? (
+                    <div className="h-8 w-16 bg-white/10 rounded animate-pulse" />
+                  ) : (
+                    <span className="font-['Lato'] font-medium text-[24px] lg:text-[32px] leading-[130%] tracking-[-0.02em] text-white">
+                      {amount}
+                    </span>
+                  )}
                   <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-[8px] flex items-center justify-center shrink-0"
                     style={{ background: "rgba(255,239,223,0.3)" }}>
                     <FigmaCardStatisticIcon className="w-5 h-5 lg:w-6 lg:h-6 text-[#FEFEFE]" />
@@ -458,7 +519,45 @@ export default function UserManagementPage() {
 
                 {/* Table rows */}
                 <div className="flex flex-col flex-1">
-                  {filteredRows.length === 0 ? (
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, idx) => {
+                      const isEven = idx % 2 === 1;
+                      const isLast = idx === 4;
+                      return (
+                        <div
+                          key={`skel-${idx}`}
+                          className={`w-full h-[68px] grid ${gridCols} items-center px-4 animate-pulse ${
+                            isLast ? "rounded-b-[16px]" : ""
+                          }`}
+                          style={{
+                            background: isEven
+                              ? "linear-gradient(0deg, rgba(255,255,255,0.05), rgba(255,255,255,0.05)), linear-gradient(0deg, #2B2A7D, #2B2A7D)"
+                              : "linear-gradient(0deg, #2B2A7D, #2B2A7D)",
+                          }}
+                        >
+                          <div className="flex items-center justify-center">
+                            <div className="h-4 w-20 bg-white/10 rounded" />
+                          </div>
+                          <div className="flex items-center justify-start">
+                            <div className="h-[22px] w-12 bg-white/10 rounded-[4px]" />
+                          </div>
+                          <div className="flex items-center justify-start">
+                            <div className="h-4 w-24 bg-white/10 rounded" />
+                          </div>
+                          <div className="flex flex-col justify-center items-start gap-1.5 w-full pr-4">
+                            <div className="h-3.5 w-24 bg-white/10 rounded" />
+                            <div className="h-3 w-32 bg-white/10 rounded" />
+                          </div>
+                          <div className="flex items-center justify-start">
+                            <div className="h-4 w-32 bg-white/10 rounded" />
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <div className="w-6 h-6 bg-white/10 rounded" />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : filteredRows.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-16 gap-3">
                       <FluentSearchIcon className="w-10 h-10 text-white/30" />
                       <p className="text-[#D0D0D0] font-['Lato'] text-sm text-center">
@@ -466,9 +565,9 @@ export default function UserManagementPage() {
                       </p>
                     </div>
                   ) : (
-                    filteredRows.slice(0, 7).map((row, idx) => {
+                    paginatedRows.map((row, idx) => {
                       const isEven = idx % 2 === 1;
-                      const isLast = idx === Math.min(filteredRows.length, 7) - 1;
+                      const isLast = idx === paginatedRows.length - 1;
                       return (
                         <div
                           key={row.id}
@@ -528,15 +627,16 @@ export default function UserManagementPage() {
                   style={{ background: "rgba(255,255,255,0.2)" }}
                 >
                   <CaretDownIcon className="w-3.5 h-3.5 text-[#B5C8DB] shrink-0" />
-                  <span className="font-['Lato'] font-normal text-[14px] text-center text-white">{rowsPerPage}</span>
+                  <span className="font-['Lato'] font-normal text-[14px] text-center text-white">{paginatedRows.length}</span>
                 </div>
                 <span className="font-['Lato'] font-medium text-[14px] text-white">
-                  Out of {filteredRows.length}
+                  Out of {isLoading ? "..." : filteredRows.length}
                 </span>
               </div>
 
               <div className="h-10 flex items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="h-10 px-3 rounded-[6px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20"
@@ -546,29 +646,26 @@ export default function UserManagementPage() {
                   <span className="font-['Lato'] font-medium text-[14px] text-white">Prev</span>
                 </button>
 
-                {[1, 2, 3].map((p) => (
-                  <button key={p} onClick={() => setCurrentPage(p)}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
                     className="w-[30px] h-10 rounded-[6px] font-['Lato'] font-medium text-[14px] text-center text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
-                    style={currentPage === p
-                      ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)", border: "none" }
-                      : { background: "rgba(255,255,255,0.2)" }}>
+                    style={
+                      currentPage === p
+                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)", border: "none" }
+                        : { background: "rgba(255,255,255,0.2)" }
+                    }
+                  >
                     {p}
                   </button>
                 ))}
 
-                <span className="w-[24px] text-center font-['Lato'] text-[14px] text-white">...</span>
-
-                <button onClick={() => setCurrentPage(15)}
-                  className="w-[30px] h-10 rounded-[6px] font-['Lato'] font-medium text-[14px] text-center text-white flex items-center justify-center transition-all cursor-pointer border border-white/10"
-                  style={currentPage === 15
-                    ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)", border: "none" }
-                    : { background: "rgba(255,255,255,0.2)" }}>
-                  15
-                </button>
-
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(15, p + 1))}
-                  disabled={currentPage === 15}
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
                   className="h-10 px-3 rounded-[6px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20"
                   style={{ background: "rgba(255,255,255,0.2)" }}
                 >

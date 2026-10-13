@@ -181,7 +181,7 @@ function SidebarContent({
 
 export default function AllUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPlanTab, setSelectedPlanTab] = useState<PlanType | "ALL">("Free Member");
+  const [selectedPlanTab, setSelectedPlanTab] = useState<PlanType | "ALL">("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -194,7 +194,7 @@ export default function AllUsersPage() {
     async function loadUsers() {
       setIsLoading(true);
       try {
-        const res = await adminApi.getUsers();
+        const res = await adminApi.getUsers({ page_size: 100 });
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
           const colors = [
@@ -250,6 +250,7 @@ export default function AllUsersPage() {
     "linear-gradient(0deg, #2B2A7D, #2B2A7D), linear-gradient(90deg, rgba(43,127,255,0.2) 0%, rgba(79,57,246,0.2) 100%)";
 
   const tabs: { key: PlanType | "ALL"; label: string; shortLabel: string; width: string }[] = [
+    { key: "ALL", label: "All Members", shortLabel: "All", width: "w-[110px]" },
     { key: "Free Member", label: "Free Members", shortLabel: "Free", width: "w-[122px]" },
     { key: "Pro Member", label: "Pro Members", shortLabel: "Pro", width: "w-[116px]" },
     { key: "Enterprise Member", label: "Enterprise Members", shortLabel: "Enterprise", width: "w-[161px]" },

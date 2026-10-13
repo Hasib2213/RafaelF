@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -265,6 +265,17 @@ export default function AdminDashboardPage() {
     if (selectedPlanFilter === "ALL") return true;
     return act.plan.toLowerCase() === selectedPlanFilter.toLowerCase();
   });
+
+  // Reset currentPage when filter, search, or pageSize changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedPlanFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredActivities.length / pageSize));
+  const paginatedActivities = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredActivities.slice(start, start + pageSize);
+  }, [filteredActivities, currentPage, pageSize]);
 
   // Dynamic fallback mappings while fetching live database stats
   const fallbackRevenueMap: Record<string, any[]> = {
@@ -1049,7 +1060,7 @@ export default function AdminDashboardPage() {
                         No matching activity records found. Try adjusting your search query or filter tab.
                       </div>
                     ) : (
-                      filteredActivities.map((row, idx) => (
+                      paginatedActivities.map((row: ActivityItem, idx: number) => (
                         <div
                           key={row.id}
                           className={`w-full min-h-[68px] px-4 sm:px-6 flex items-center justify-between transition-colors hover:bg-white/10 ${
@@ -1131,63 +1142,50 @@ export default function AdminDashboardPage() {
                       onChange={(e) => setPageSize(Number(e.target.value))}
                       className="px-3 py-1.5 rounded-md bg-white/20 border border-white/10 text-white outline-none cursor-pointer"
                     >
+                      <option value={5} className="bg-[#151628] text-white">5</option>
                       <option value={10} className="bg-[#151628] text-white">10</option>
                       <option value={20} className="bg-[#151628] text-white">20</option>
                       <option value={50} className="bg-[#151628] text-white">50</option>
                     </select>
                   </div>
-                  <span className="text-[#D0D0D0] font-normal">per page (Showing 1-{filteredActivities.length} of 50)</span>
+                  <span className="text-[#D0D0D0] font-normal">
+                    per page (Showing {filteredActivities.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
+                    {Math.min(currentPage * pageSize, filteredActivities.length)} of {filteredActivities.length})
+                  </span>
                 </div>
 
                 {/* Pagination Controls */}
                 <div className="flex items-center gap-1.5 sm:gap-2 select-none flex-wrap justify-center">
                   <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span className="hidden xs:inline">Previous</span>
                   </button>
 
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
-                      currentPage === 1
-                        ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
-                        : "bg-white/20 hover:bg-white/30 text-white"
-                    }`}
-                  >
-                    1
-                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer transition-all ${
+                        currentPage === p
+                          ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
+                          : "bg-white/20 hover:bg-white/30 text-white"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
 
                   <button
-                    onClick={() => setCurrentPage(2)}
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
-                      currentPage === 2
-                        ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
-                        : "bg-white/20 hover:bg-white/30 text-white"
-                    }`}
-                  >
-                    2
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentPage(3)}
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer ${
-                      currentPage === 3
-                        ? "bg-gradient-to-r from-[#2B7FFF] to-[#4F39F6] text-white shadow"
-                        : "bg-white/20 hover:bg-white/30 text-white"
-                    }`}
-                  >
-                    3
-                  </button>
-
-                  <span className="text-white/60 px-0.5 sm:px-1">...</span>
-
-                  <button
-                    onClick={() => setCurrentPage(Math.min(10, currentPage + 1))}
-                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer"
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-2.5 sm:px-3 py-1.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <span className="hidden xs:inline">Next</span>
                     <ChevronRight className="w-4 h-4" />

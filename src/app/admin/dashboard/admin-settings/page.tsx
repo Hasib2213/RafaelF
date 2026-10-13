@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Eye, EyeOff, Search } from "lucide-react";
@@ -166,6 +166,7 @@ export default function AdminSettingsPage() {
 
   // Admin Management state
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
   const [adminPage, setAdminPage] = useState(1);
   const [adminToRemove, setAdminToRemove] = useState<AdminUser | null>(null);
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
@@ -179,10 +180,13 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
+      setIsLoadingAdmins(true);
+      let profileData: any = null;
       // 1. Load Admin Profile
       try {
         const profile = await authApi.getProfile();
         if (isMounted && profile) {
+          profileData = profile;
           setAdminInfo({
             firstName: profile.first_name || "",
             lastName: profile.last_name || "",
@@ -202,12 +206,18 @@ export default function AdminSettingsPage() {
 
       // 2. Load Users to populate suspended users & admin staff
       try {
-        const res = await adminApi.getUsers();
-        if (isMounted && res) {
-          const list = Array.isArray(res) ? res : res.results || [];
-          const suspended: SuspendedUser[] = list
-            .filter((u: any) => u.is_suspended)
-            .map((u: any) => ({
+        const [adminRes, suspendedRes] = await Promise.allSettled([
+          adminApi.getUsers({ role: "admin" }),
+          adminApi.getUsers({ suspended: "true" }),
+        ]);
+
+        if (isMounted) {
+          // Process suspended users
+          if (suspendedRes.status === "fulfilled" && suspendedRes.value) {
+            const suspendedList = Array.isArray(suspendedRes.value)
+              ? suspendedRes.value
+              : suspendedRes.value.results || [];
+            const suspended: SuspendedUser[] = suspendedList.map((u: any) => ({
               id: u.id,
               dateTime: u.date_joined
                 ? new Date(u.date_joined).toLocaleDateString("en-US", {
@@ -225,23 +235,45 @@ export default function AdminSettingsPage() {
               reason: u.suspension_reason || "Account suspended by Admin",
               email: u.email,
             }));
-          setSuspendedUsers(suspended);
+            setSuspendedUsers(suspended);
+          }
 
-          const admins: AdminUser[] = list
-            .filter((u: any) => u.role === "admin" || u.is_staff)
-            .map((u: any) => ({
+          // Process admin users
+          let admins: AdminUser[] = [];
+          if (adminRes.status === "fulfilled" && adminRes.value) {
+            const adminList = Array.isArray(adminRes.value)
+              ? adminRes.value
+              : adminRes.value.results || [];
+            admins = adminList.map((u: any) => ({
               id: u.id,
               name: u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email,
               role: u.is_superuser ? "Super Admin" : "Admin",
               email: u.email,
-              status: u.is_active ? "Active" : "Inactive",
+              status: u.is_active !== false ? "Active" : "Inactive",
             }));
+          }
+
+          // If no admin was returned from query, ensure logged-in admin is included
+          if (admins.length === 0 && profileData) {
+            admins.push({
+              id: profileData.id || "admin-main",
+              name: profileData.full_name || `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || profileData.email,
+              role: "Super Admin",
+              email: profileData.email,
+              status: "Active",
+            });
+          }
+
           setAdminUsers(admins);
         }
       } catch {
         if (isMounted) {
           setSuspendedUsers([]);
           setAdminUsers([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingAdmins(false);
         }
       }
     }
@@ -289,8 +321,25 @@ export default function AdminSettingsPage() {
       u.email.toLowerCase().includes(q) ||
       u.reason.toLowerCase().includes(q) ||
       u.dateTime.toLowerCase().includes(q);
-    return matchesTier && matchesSearch;
   });
+
+  useEffect(() => {
+    setSuspendedPage(1);
+  }, [suspendedMemberFilter, suspendedSearch]);
+
+  const suspendedPageSize = 10;
+  const totalSuspendedPages = Math.max(1, Math.ceil(filteredSuspendedUsers.length / suspendedPageSize));
+  const paginatedSuspendedUsers = useMemo(() => {
+    const start = (suspendedPage - 1) * suspendedPageSize;
+    return filteredSuspendedUsers.slice(start, start + suspendedPageSize);
+  }, [filteredSuspendedUsers, suspendedPage]);
+
+  const adminPageSize = 10;
+  const totalAdminPages = Math.max(1, Math.ceil(adminUsers.length / adminPageSize));
+  const paginatedAdminUsers = useMemo(() => {
+    const start = (adminPage - 1) * adminPageSize;
+    return adminUsers.slice(start, start + adminPageSize);
+  }, [adminUsers, adminPage]);
 
   const handleConfirmEndSuspension = async () => {
     if (!userToUnsuspend) return;
@@ -1107,7 +1156,7 @@ export default function AdminSettingsPage() {
                         <p>No suspended {suspendedMemberFilter} members found.</p>
                       </div>
                     ) : (
-                      filteredSuspendedUsers.map((user, idx) => {
+                      paginatedSuspendedUsers.map((user: SuspendedUser, idx: number) => {
                         const isEven = idx % 2 === 1;
                         return (
                           <div
@@ -1193,7 +1242,9 @@ export default function AdminSettingsPage() {
                     className="w-[53px] h-[40px] rounded-[6px] px-2 flex items-center justify-center gap-1 cursor-pointer hover:bg-white/30 transition-colors"
                     style={{ background: "rgba(255, 255, 255, 0.2)" }}
                   >
-                    <span className="font-['Lato'] font-normal text-[14px] text-white">10</span>
+                    <span className="font-['Lato'] font-normal text-[14px] text-white">
+                      {paginatedSuspendedUsers.length}
+                    </span>
                     <CaretDownIcon className="w-3.5 h-3.5 text-[#B5C8DB]" />
                   </div>
                   <span>of {filteredSuspendedUsers.length} Results</span>
@@ -1212,50 +1263,30 @@ export default function AdminSettingsPage() {
                     <span>Previous</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSuspendedPage(1)}
-                    className="w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] text-white shadow-sm cursor-pointer"
-                    style={{ background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }}
-                  >
-                    1
-                  </button>
+                  {Array.from({ length: totalSuspendedPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setSuspendedPage(p)}
+                      className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] text-white transition-all cursor-pointer ${
+                        suspendedPage === p
+                          ? "shadow-sm"
+                          : "hover:bg-white/30"
+                      }`}
+                      style={
+                        suspendedPage === p
+                          ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                          : { background: "rgba(255, 255, 255, 0.2)" }
+                      }
+                    >
+                      {p}
+                    </button>
+                  ))}
 
                   <button
                     type="button"
-                    onClick={() => setSuspendedPage(2)}
-                    className="w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] text-white hover:bg-white/30 transition-all cursor-pointer"
-                    style={{ background: "rgba(255, 255, 255, 0.2)" }}
-                  >
-                    2
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSuspendedPage(3)}
-                    className="w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] text-white hover:bg-white/30 transition-all cursor-pointer"
-                    style={{ background: "rgba(255, 255, 255, 0.2)" }}
-                  >
-                    3
-                  </button>
-
-                  <span className="w-[30px] h-[39px] flex items-center justify-center font-['Lato'] font-normal text-[14px] text-white">
-                    ...
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setSuspendedPage(10)}
-                    className="w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] text-white hover:bg-white/30 transition-all cursor-pointer"
-                    style={{ background: "rgba(255, 255, 255, 0.2)" }}
-                  >
-                    10
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={suspendedPage >= 10}
-                    onClick={() => setSuspendedPage((p) => p + 1)}
+                    disabled={suspendedPage >= totalSuspendedPages}
+                    onClick={() => setSuspendedPage((p) => Math.min(totalSuspendedPages, p + 1))}
                     className="w-[68px] h-[40px] rounded-[6px] px-2 flex items-center justify-center gap-1 font-['Lato'] font-medium text-[14px] leading-[150%] text-white hover:bg-white/30 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: "rgba(255, 255, 255, 0.2)" }}
                   >
@@ -1342,12 +1373,30 @@ export default function AdminSettingsPage() {
                     </div>
 
                     {/* Table Rows (Frame 2147239439, 2147239452, etc.) */}
-                    {adminUsers.length === 0 ? (
+                    {isLoadingAdmins ? (
+                      <div className="flex flex-col">
+                        {[1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className={`grid ${adminGridCols} items-center px-4 sm:px-6 h-[68px] animate-pulse`}
+                            style={{
+                              background: i % 2 === 0 ? adminRowEvenBg : adminRowOddBg,
+                            }}
+                          >
+                            <div className="h-4 bg-white/10 rounded w-28"></div>
+                            <div className="h-4 bg-white/10 rounded w-20"></div>
+                            <div className="h-4 bg-white/10 rounded w-40"></div>
+                            <div className="h-7 bg-white/10 rounded-full w-20"></div>
+                            <div className="h-8 bg-white/10 rounded-lg w-20"></div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : adminUsers.length === 0 ? (
                       <div className="w-full h-48 flex items-center justify-center text-white/50 font-['Lato'] text-[16px]">
                         No administrators found
                       </div>
                     ) : (
-                      adminUsers.map((admin, idx) => {
+                      paginatedAdminUsers.map((admin: AdminUser, idx: number) => {
                         const isEven = idx % 2 === 1;
                         return (
                           <div
@@ -1405,10 +1454,12 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center justify-center md:justify-start gap-2.5 font-['Lato'] font-medium text-[14px] leading-[150%] text-white">
                   <span>Showing</span>
                   <div className="w-[53px] h-[40px] px-2 rounded-[6px] bg-white/20 flex items-center justify-center gap-1 cursor-pointer hover:bg-white/30 transition-colors">
-                    <span className="font-['Lato'] font-normal text-[14px] text-white">10</span>
+                    <span className="font-['Lato'] font-normal text-[14px] text-white">
+                      {paginatedAdminUsers.length}
+                    </span>
                     <CaretDownIcon className="w-3.5 h-3.5 text-[#B5C8DB]" />
                   </div>
-                  <span>results</span>
+                  <span>of {adminUsers.length} Results</span>
                 </div>
 
                 {/* Pagination Controls */}
@@ -1424,88 +1475,31 @@ export default function AdminSettingsPage() {
                     <span>Previous</span>
                   </button>
 
-                  {/* Page 1 (Active) */}
-                  <button
-                    type="button"
-                    onClick={() => setAdminPage(1)}
-                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
-                      adminPage === 1
-                        ? "shadow-md"
-                        : "bg-white/20 hover:bg-white/30"
-                    }`}
-                    style={
-                      adminPage === 1
-                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
-                        : undefined
-                    }
-                  >
-                    1
-                  </button>
-
-                  {/* Page 2 */}
-                  <button
-                    type="button"
-                    onClick={() => setAdminPage(2)}
-                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
-                      adminPage === 2
-                        ? "shadow-md"
-                        : "bg-white/20 hover:bg-white/30"
-                    }`}
-                    style={
-                      adminPage === 2
-                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
-                        : undefined
-                    }
-                  >
-                    2
-                  </button>
-
-                  {/* Page 3 */}
-                  <button
-                    type="button"
-                    onClick={() => setAdminPage(3)}
-                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
-                      adminPage === 3
-                        ? "shadow-md"
-                        : "bg-white/20 hover:bg-white/30"
-                    }`}
-                    style={
-                      adminPage === 3
-                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
-                        : undefined
-                    }
-                  >
-                    3
-                  </button>
-
-                  {/* Ellipsis */}
-                  <div className="w-[30px] h-[39px] rounded-[12px] flex items-center justify-center font-['Lato'] font-normal text-[14px] text-white">
-                    ...
-                  </div>
-
-                  {/* Page 10 */}
-                  <button
-                    type="button"
-                    onClick={() => setAdminPage(10)}
-                    className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
-                      adminPage === 10
-                        ? "shadow-md"
-                        : "bg-white/20 hover:bg-white/30"
-                    }`}
-                    style={
-                      adminPage === 10
-                        ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
-                        : undefined
-                    }
-                  >
-                    10
-                  </button>
+                  {Array.from({ length: totalAdminPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setAdminPage(p)}
+                      className={`w-[30px] h-[40px] rounded-[6px] flex items-center justify-center font-['Lato'] font-medium text-[14px] leading-[150%] text-white transition-all cursor-pointer ${
+                        adminPage === p
+                          ? "shadow-md"
+                          : "bg-white/20 hover:bg-white/30"
+                      }`}
+                      style={
+                        adminPage === p
+                          ? { background: "linear-gradient(90deg, #2B7FFF 0%, #4F39F6 100%)" }
+                          : undefined
+                      }
+                    >
+                      {p}
+                    </button>
+                  ))}
 
                   {/* Next */}
                   <button
                     type="button"
-                    onClick={() => setAdminPage((p) => Math.min(10, p + 1))}
-                    disabled={adminPage === 10}
+                    onClick={() => setAdminPage((p) => Math.min(totalAdminPages, p + 1))}
+                    disabled={adminPage >= totalAdminPages}
                     className="h-[40px] px-3 rounded-[6px] bg-white/20 hover:bg-white/30 disabled:opacity-40 disabled:hover:bg-white/20 text-white flex items-center gap-1.5 font-['Lato'] font-medium text-[14px] leading-[150%] transition-colors cursor-pointer disabled:cursor-not-allowed"
                   >
                     <span>Next</span>

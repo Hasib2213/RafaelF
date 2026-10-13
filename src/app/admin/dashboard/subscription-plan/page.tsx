@@ -190,7 +190,7 @@ export default function SubscriptionPlanPage() {
       if (planId) {
         await adminApi.updateSubscriptionPlan(planId, {
           price: plan.price,
-          features: plan.facilities.join("\n"),
+          features: plan.facilities.map((f) => f.trim()).filter(Boolean),
           is_best_offer: plan.isBestOffer,
         });
       }
