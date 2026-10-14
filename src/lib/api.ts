@@ -336,6 +336,7 @@ export const authApi = {
   getProfile: async (): Promise<User> => {
     const user = await apiClient<User>("/api/auth/profile/", {
       method: "GET",
+      cacheTtl: 60,
     });
     const normalized = normalizeUser(user) || user;
     setStoredUser(normalized);
@@ -349,6 +350,7 @@ export const authApi = {
       method: "PATCH",
       body: isFormData ? data : JSON.stringify(data),
     });
+    invalidateClientCache("/api/auth/profile");
     const normalized = normalizeUser(updated) || updated;
     setStoredUser(normalized);
     return normalized;
@@ -356,10 +358,12 @@ export const authApi = {
 
   // Change password
   changePassword: async (payload: ChangePasswordPayload): Promise<{ message: string }> => {
-    return apiClient("/api/auth/change-password/", {
+    const res = await apiClient<{ message: string }>("/api/auth/change-password/", {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    invalidateClientCache("/api/auth/profile");
+    return res;
   },
 
   // Forgot password (request OTP)
@@ -397,6 +401,7 @@ export const authApi = {
 
   // Logout
   logout: () => {
+    invalidateClientCache();
     clearAuthSession();
   },
 };
@@ -441,7 +446,7 @@ export const briefingsApi = {
     const qs = query.toString();
     return apiClient<PaginatedResponse<Briefing>>(
       `/api/briefings/${qs ? `?${qs}` : ""}`,
-      { method: "GET" }
+      { method: "GET", cacheTtl: 60 }
     );
   },
 
@@ -454,7 +459,9 @@ export const briefingsApi = {
   },
 
   triggerSync: async (): Promise<{ message: string }> => {
-    return apiClient("/api/briefings/sync/", { method: "POST" });
+    const res = await apiClient<{ message: string }>("/api/briefings/sync/", { method: "POST" });
+    invalidateClientCache("/api/briefings");
+    return res;
   },
 };
 
@@ -465,21 +472,29 @@ export const creatorsApi = {
   },
 
   getFollowing: async (): Promise<Creator[]> => {
-    const res = await apiClient<any>("/api/creators/following/", { method: "GET" });
+    const res = await apiClient<any>("/api/creators/following/", { method: "GET", cacheTtl: 60 });
     return Array.isArray(res) ? res : res.results || [];
   },
 
   toggleFollow: async (
     creatorId: string
   ): Promise<{ message: string; is_following: boolean; creator: Creator }> => {
-    return apiClient(`/api/creators/${creatorId}/toggle-follow/`, { method: "POST" });
+    const res = await apiClient<{ message: string; is_following: boolean; creator: Creator }>(
+      `/api/creators/${creatorId}/toggle-follow/`,
+      { method: "POST" }
+    );
+    invalidateClientCache("/api/creators/following");
+    invalidateClientCache("/api/creators");
+    return res;
   },
 
   addByUrl: async (channelUrl: string): Promise<{ message: string; creator: Creator }> => {
-    return apiClient("/api/creators/add/", {
+    const res = await apiClient<{ message: string; creator: Creator }>("/api/creators/add/", {
       method: "POST",
       body: JSON.stringify({ url: channelUrl }),
     });
+    invalidateClientCache("/api/creators");
+    return res;
   },
 
   getDetail: async (pkOrHandle: string): Promise<Creator> => {
@@ -497,17 +512,26 @@ export const libraryApi = {
     if (params?.sort) sp.set("sort", params.sort);
     if (params?.search) sp.set("search", params.search);
     const query = sp.toString() ? `?${sp.toString()}` : "";
-    return apiClient(`/api/library/${query}`, { method: "GET" });
+    return apiClient(`/api/library/${query}`, { method: "GET", cacheTtl: 60 });
   },
 
   toggleSave: async (
     briefingId: string
   ): Promise<{ message: string; is_saved: boolean; briefing_id: string }> => {
-    return apiClient(`/api/library/toggle/${briefingId}/`, { method: "POST" });
+    const res = await apiClient<{ message: string; is_saved: boolean; briefing_id: string }>(
+      `/api/library/toggle/${briefingId}/`,
+      { method: "POST" }
+    );
+    invalidateClientCache("/api/library");
+    return res;
   },
 
   remove: async (libraryItemId: string): Promise<{ message: string }> => {
-    return apiClient(`/api/library/${libraryItemId}/`, { method: "DELETE" });
+    const res = await apiClient<{ message: string }>(`/api/library/${libraryItemId}/`, {
+      method: "DELETE",
+    });
+    invalidateClientCache("/api/library");
+    return res;
   },
 };
 
@@ -516,33 +540,42 @@ export const notificationsApi = {
   list: async (): Promise<PaginatedResponse<NotificationItem>> => {
     return apiClient<PaginatedResponse<NotificationItem>>("/api/auth/notifications/", {
       method: "GET",
+      cacheTtl: 30,
     });
   },
 
   markRead: async (notificationId: string): Promise<{ message: string }> => {
-    return apiClient(`/api/auth/notifications/${notificationId}/read/`, {
+    const res = await apiClient(`/api/auth/notifications/${notificationId}/read/`, {
       method: "POST",
     });
+    invalidateClientCache("/api/auth/notifications");
+    return res;
   },
 
   markAllRead: async (): Promise<{ message: string; count: number }> => {
-    return apiClient("/api/auth/notifications/mark-all-read/", {
+    const res = await apiClient("/api/auth/notifications/mark-all-read/", {
       method: "POST",
     });
+    invalidateClientCache("/api/auth/notifications");
+    return res;
   },
 };
 
 // Feedback API
 export const feedbackApi = {
   submit: async (data: FeedbackPayload): Promise<{ message: string; feedback: any }> => {
-    return apiClient("/api/feedback/submit/", {
+    const res = await apiClient<{ message: string; feedback: any }>("/api/feedback/submit/", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    invalidateClientCache("/api/feedback/my-feedback");
+    invalidateClientCache("/api/feedback/featured");
+    invalidateClientCache("/api/feedback/admin/reviews");
+    return res;
   },
 
   getMyFeedback: async (): Promise<any[]> => {
-    const res = await apiClient<any>("/api/feedback/my-feedback/", { method: "GET" });
+    const res = await apiClient<any>("/api/feedback/my-feedback/", { method: "GET", cacheTtl: 60 });
     return Array.isArray(res) ? res : res.results || [];
   },
 

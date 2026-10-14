@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import FeedSidebar from "@/components/feed/FeedSidebar";
 import FeedNavbar from "@/components/feed/FeedNavbar";
 import Footer from "@/components/Footer";
-import { Camera, Trash2, Eye, EyeOff, Check, AlertCircle, Loader2, User as UserIcon } from "lucide-react";
+import { Camera, Trash2, Eye, EyeOff, Check, AlertCircle, Loader2, User as UserIcon, X, ZoomIn, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authApi, resolveAvatarUrl } from "@/lib/api";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   // Password states
   const [oldPassword, setOldPassword] = useState("");
@@ -105,6 +106,20 @@ export default function ProfilePage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsPreviewModalOpen(false);
+      }
+    };
+    if (isPreviewModalOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPreviewModalOpen]);
 
   // Profile save & cancel
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -289,15 +304,32 @@ export default function ProfilePage() {
                 </h2>
 
                 {/* Avatar Frame with Camera Edit Badge (Figma Frame 2147225842 & fi_45010) */}
-                <div className="relative w-[234px] h-[234px]">
-                  <div className="w-[234px] h-[234px] rounded-full border-2 border-white/40 overflow-hidden shadow-2xl bg-gradient-to-tr from-[#2563EB] to-[#A842D4] flex items-center justify-center select-none">
+                <div className="relative w-[234px] h-[234px] group">
+                  <div
+                    onClick={() => {
+                      if (avatarSrc && !avatarLoadError) {
+                        setIsPreviewModalOpen(true);
+                      }
+                    }}
+                    className={`w-[234px] h-[234px] rounded-full border-2 border-white/40 overflow-hidden shadow-2xl bg-gradient-to-tr from-[#2563EB] to-[#A842D4] flex items-center justify-center select-none relative ${
+                      avatarSrc && !avatarLoadError ? "cursor-pointer group-hover:border-white/80 transition-all" : ""
+                    }`}
+                    title={avatarSrc && !avatarLoadError ? "Click to view full photo" : undefined}
+                  >
                     {avatarSrc && !avatarLoadError ? (
-                      <img
-                        src={avatarSrc}
-                        alt="Profile Avatar"
-                        className="w-full h-full object-cover"
-                        onError={() => setAvatarLoadError(true)}
-                      />
+                      <>
+                        <img
+                          src={avatarSrc}
+                          alt="Profile Avatar"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={() => setAvatarLoadError(true)}
+                        />
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white">
+                          <ZoomIn className="w-8 h-8 drop-shadow-lg" />
+                          <span className="text-xs font-semibold drop-shadow tracking-wide">View Full Photo</span>
+                        </div>
+                      </>
                     ) : userInitials ? (
                       <span className="text-6xl font-bold font-['Lato',sans-serif] text-white tracking-wider drop-shadow-md">
                         {userInitials}
@@ -307,18 +339,30 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Action Badges: Remove (when photo exists) & Upload */}
+                  {/* Action Badges: View Full Photo, Remove (when photo exists) & Upload */}
                   <div className="absolute right-2 bottom-2 flex items-center gap-2">
                     {Boolean(avatarSrc && !avatarLoadError) && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveAvatar}
-                        aria-label="Remove profile picture"
-                        title="Remove profile picture"
-                        className="w-[42px] h-[42px] bg-red-500/60 hover:bg-red-500/85 active:scale-95 backdrop-blur-md rounded-lg border border-red-300/40 flex items-center justify-center transition-all cursor-pointer shadow-lg group"
-                      >
-                        <Trash2 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setIsPreviewModalOpen(true)}
+                          aria-label="View full profile picture"
+                          title="View full profile picture"
+                          className="w-[42px] h-[42px] bg-white/30 hover:bg-white/50 active:scale-95 backdrop-blur-md rounded-lg border border-white/30 flex items-center justify-center transition-all cursor-pointer shadow-lg group/btn"
+                        >
+                          <Eye className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          aria-label="Remove profile picture"
+                          title="Remove profile picture"
+                          className="w-[42px] h-[42px] bg-red-500/60 hover:bg-red-500/85 active:scale-95 backdrop-blur-md rounded-lg border border-red-300/40 flex items-center justify-center transition-all cursor-pointer shadow-lg group/btn"
+                        >
+                          <Trash2 className="w-5 h-5 text-white group-hover/btn:scale-110 transition-transform" />
+                        </button>
+                      </>
                     )}
 
                     <button
@@ -326,9 +370,9 @@ export default function ProfilePage() {
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Change profile picture"
                       title="Upload new profile picture"
-                      className="w-[48px] h-[42px] bg-white/40 hover:bg-white/60 active:scale-95 backdrop-blur-md rounded-lg border border-white/30 flex items-center justify-center transition-all cursor-pointer shadow-lg group"
+                      className="w-[48px] h-[42px] bg-white/40 hover:bg-white/60 active:scale-95 backdrop-blur-md rounded-lg border border-white/30 flex items-center justify-center transition-all cursor-pointer shadow-lg group/btn"
                     >
-                      <Camera className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+                      <Camera className="w-6 h-6 text-white group-hover/btn:scale-110 transition-transform" />
                     </button>
                   </div>
 
@@ -676,6 +720,90 @@ export default function ProfilePage() {
           <span className="text-sm font-medium font-['Lato',sans-serif]">
             {toastMessage}
           </span>
+        </div>
+      )}
+
+      {/* Full Photo Preview Lightbox Modal */}
+      {isPreviewModalOpen && avatarSrc && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsPreviewModalOpen(false)}
+        >
+          {/* Modal Container */}
+          <div
+            className="relative max-w-2xl w-full bg-[#1A1848]/95 border border-white/20 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#2B2A7D]/40">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/30 shrink-0 bg-slate-800">
+                  <img src={avatarSrc} alt="Thumbnail" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white leading-tight font-['Lato',sans-serif]">
+                    Profile Photo Preview
+                  </h3>
+                  <p className="text-xs text-white/60 font-['Lato',sans-serif]">
+                    {tempProfile.firstName || tempProfile.lastName
+                      ? `${tempProfile.firstName} ${tempProfile.lastName}`.trim()
+                      : user?.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(false)}
+                aria-label="Close preview"
+                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Image Area */}
+            <div className="w-full max-h-[70vh] min-h-[260px] bg-black/40 flex items-center justify-center p-4 sm:p-6 overflow-hidden select-none">
+              <img
+                src={avatarSrc}
+                alt="Full Profile Photo"
+                className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-2xl border border-white/10"
+              />
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="flex items-center justify-between px-6 py-3.5 border-t border-white/10 bg-[#2B2A7D]/40">
+              <span className="text-xs text-white/50 hidden sm:inline font-['Lato',sans-serif]">
+                Press ESC or click outside to close
+              </span>
+              <div className="flex items-center gap-3 ml-auto">
+                <a
+                  href={avatarSrc}
+                  target="_blank"
+                  rel="noreferrer"
+                  download="profile_photo.jpg"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2 transition-all active:scale-95"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Photo</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPreviewModalOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#7A3BED] hover:brightness-110 text-white text-xs font-semibold flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-purple-900/30 cursor-pointer"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Change Photo</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
