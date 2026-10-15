@@ -1,21 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Lato, Manrope } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-
-const lato = Lato({
-  variable: "--font-lato",
-  subsets: ["latin"],
-  weight: ["300", "400", "700", "900"],
-  display: "swap",
-});
-
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -37,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${lato.variable} ${manrope.variable} dark scroll-smooth`}>
+    <html lang="en" className="dark scroll-smooth">
       <body className="min-h-screen bg-[#0F172A] text-white font-sans antialiased selection:bg-[#7A3BED] selection:text-white overflow-x-hidden">
         <AuthProvider>{children}</AuthProvider>
       </body>
