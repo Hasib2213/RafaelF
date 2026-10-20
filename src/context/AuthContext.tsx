@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { User, LoginPayload, LoginResponse } from "@/lib/types/auth";
 import {
   authApi,
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  const login = async (payload: LoginPayload, rememberMe: boolean = true): Promise<LoginResponse> => {
+  const login = useCallback(async (payload: LoginPayload, rememberMe: boolean = true): Promise<LoginResponse> => {
     setIsLoading(true);
     try {
       const response = await authApi.login(payload);
@@ -64,14 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authApi.logout();
     setUser(null);
-  };
+  }, []);
 
-  const refreshUser = async (): Promise<User | null> => {
+  const refreshUser = useCallback(async (): Promise<User | null> => {
     try {
       const updated = await authApi.getProfile();
       setUser(updated);
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return null;
     }
-  };
+  }, []);
 
   const value = {
     user,

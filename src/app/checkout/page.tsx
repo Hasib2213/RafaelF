@@ -134,6 +134,10 @@ function CheckoutContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Status params from SSLCommerz callback redirect
+  const statusParam = searchParams.get("status");
+  const tranIdParam = searchParams.get("tran_id");
+
   // Form State
   const [formData, setFormData] = useState({
     firstName: user?.first_name || "",
@@ -156,6 +160,23 @@ function CheckoutContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const hasProcessedStatusRef = React.useRef(false);
+
+  // Handle callback status when user returns from SSLCommerz
+  useEffect(() => {
+    if (!statusParam || hasProcessedStatusRef.current) return;
+    hasProcessedStatusRef.current = true;
+
+    if (statusParam === "success") {
+      setIsSuccess(true);
+      refreshUser();
+    } else if (statusParam === "failed") {
+      setErrorMessage("Payment failed or could not be verified by SSLCommerz. Please try again.");
+    } else if (statusParam === "cancelled") {
+      setErrorMessage("Payment was cancelled. You have not been charged.");
+    }
+  }, [statusParam]);
 
   // Sync user info when available
   useEffect(() => {
@@ -240,7 +261,7 @@ function CheckoutContent() {
       const cleanCard = formData.cardNumber.replace(/\s+/g, "");
       const last4 = cleanCard.slice(-4) || "2585";
 
-      await subscriptionsApi.checkout(planId, billingCycle, {
+      const res = await subscriptionsApi.checkout(planId, billingCycle, {
         first_name: formData.firstName || user?.first_name || "User",
         last_name: formData.lastName || user?.last_name || "Account",
         email: formData.email || user?.email || "user@curio.com",
@@ -250,10 +271,17 @@ function CheckoutContent() {
         city: formData.city || "Dhaka",
         state: formData.state || "",
         zip_code: formData.paymentZip || formData.zipCode || "1205",
+        payment_gateway: "sslcommerz",
         card_brand: selectedCardType,
         card_last4: last4,
         card_number: `**** **** **** ${last4}`,
       });
+
+      // Redirect to SSLCommerz Gateway if URL returned
+      if (res?.checkout_url) {
+        window.location.href = res.checkout_url;
+        return;
+      }
 
       await refreshUser();
       setIsSuccess(true);
@@ -312,14 +340,27 @@ function CheckoutContent() {
 
             {/* Success Toast / Notification */}
             {isSuccess && (
-              <div className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 flex items-center gap-3 animate-fade-in">
-                <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0" />
-                <div>
-                  <p className="font-semibold text-white">Payment & Booking Confirmed!</p>
-                  <p className="text-xs text-emerald-200/90">
-                    Your details and payment have been successfully processed. An invoice has been emailed to {formData.email || user?.email || "abir07@gmai.com"}.
-                  </p>
+              <div className="p-4 sm:p-5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-white text-base">Payment & Subscription Confirmed!</p>
+                    <p className="text-xs text-emerald-200/90 mt-0.5">
+                      Your details and payment have been successfully verified. Welcome to {currentPlan?.name || "Pro"}!
+                      {tranIdParam && (
+                        <span className="block mt-1 font-mono text-[11px] text-emerald-300">
+                          Transaction ID: {tranIdParam}
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
+                <a
+                  href="/feed"
+                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition-colors text-center shrink-0"
+                >
+                  Go to Feed ➔
+                </a>
               </div>
             )}
 
@@ -661,10 +702,14 @@ function CheckoutContent() {
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processing...</span>
+                      <span>Connecting to Payment Gateway...</span>
                     </div>
                   ) : (
-                    <span>Subscription</span>
+                    <span>
+                      {currentPlan?.price > 0
+                        ? `Pay with SSLCommerz (${currentPlan.currency || "$"}${currentPlan.price})`
+                        : "Confirm Subscription"}
+                    </span>
                   )}
                 </button>
               </div>
