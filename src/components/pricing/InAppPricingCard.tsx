@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, Star, CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export interface PlanConfig {
@@ -168,10 +168,15 @@ export default function InAppPricingCard({
         ) : (
           <button
             type="button"
-            className="flex items-center gap-2 text-white font-bold text-lg font-['Lato',sans-serif] hover:scale-105 active:scale-95 transition-transform"
+            disabled
+            className="flex items-center gap-2 text-white/90 font-bold text-lg font-['Lato',sans-serif] cursor-default"
           >
             <span>{plan.buttonText}</span>
-            <ArrowRight className="w-5 h-5 text-white stroke-[2.5]" />
+            {plan.buttonText === "Current Plan" ? (
+              <CheckCircle className="w-5 h-5 text-[#4ADE80] stroke-[2.5]" />
+            ) : (
+              <ArrowRight className="w-5 h-5 text-white stroke-[2.5]" />
+            )}
           </button>
         )}
       </div>

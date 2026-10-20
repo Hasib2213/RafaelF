@@ -23,14 +23,14 @@ export default function AdminProfileBadge({ className, style }: AdminProfileBadg
     // Read fallback from localStorage if context is still loading
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("curio_admin_user") || localStorage.getItem("curio_user");
+        const stored = localStorage.getItem("curio_admin_user");
         if (stored) {
           const parsed = JSON.parse(stored);
           const name = parsed.full_name || `${parsed.first_name || ""} ${parsed.last_name || ""}`.trim() || parsed.email?.split("@")[0];
           setLocalAdmin({
             name,
             avatar: parsed.avatar_url || parsed.avatar,
-            role: parsed.role === "admin" || parsed.is_staff ? "Admin" : (parsed.role || "Admin"),
+            role: parsed.is_superuser ? "Super Admin" : "Admin",
           });
         }
       } catch {
@@ -39,25 +39,26 @@ export default function AdminProfileBadge({ className, style }: AdminProfileBadg
     }
   }, []);
 
-  const rawAvatar = user?.avatar_url || user?.avatar || localAdmin?.avatar;
+  const isAdminUser = user && (user.role === "admin" || user.is_staff || user.is_superuser);
+  const activeAdmin = isAdminUser ? user : localAdmin;
+
+  const rawAvatar = (activeAdmin as any)?.avatar_url || (activeAdmin as any)?.avatar;
   const avatarUrl = resolveAvatarUrl(rawAvatar);
 
   useEffect(() => {
     setImageError(false);
   }, [rawAvatar]);
 
-  const displayName = user
-    ? user.full_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email?.split("@")[0] || "Abir Hossain"
-    : localAdmin?.name || "Abir Hossain";
+  const displayName = activeAdmin
+    ? (activeAdmin as any).full_name || `${(activeAdmin as any).first_name || ""} ${(activeAdmin as any).last_name || ""}`.trim() || (activeAdmin as any).email?.split("@")[0] || (activeAdmin as any).name || "Admin"
+    : "Admin";
 
-  const displayRole = user?.role === "admin" || user?.is_staff
-    ? "Admin"
-    : user?.role || localAdmin?.role || "Admin";
+  const displayRole = (activeAdmin as any)?.is_superuser ? "Super Admin" : "Admin";
 
   const initials = displayName
     .split(" ")
     .filter(Boolean)
-    .map((w) => w[0])
+    .map((w: string) => w[0])
     .join("")
     .slice(0, 2)
     .toUpperCase() || "AH";

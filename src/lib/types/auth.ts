@@ -15,6 +15,7 @@ export interface User {
   is_suspended: boolean;
   suspension_reason?: string;
   is_staff: boolean;
+  is_superuser?: boolean;
   date_joined: string;
   following_count: number;
   saved_briefings_count: number;

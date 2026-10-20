@@ -67,6 +67,7 @@ export const clearAuthSession = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem("curio_admin_user");
 };
 
 export const getStoredUser = (): User | null => {
@@ -236,7 +237,13 @@ export async function apiClient<T = any>(
 
     // Attach token if needed
     if (!skipAuth) {
-      const token = getAccessToken();
+      let token = getAccessToken();
+      if (typeof window !== "undefined" && (endpoint.includes("/admin/") || window.location.pathname.startsWith("/admin"))) {
+        const adminToken = localStorage.getItem("curio_admin_token");
+        if (adminToken) {
+          token = adminToken;
+        }
+      }
       if (token) {
         requestHeaders.set("Authorization", `Bearer ${token}`);
       }
@@ -333,10 +340,12 @@ export const authApi = {
   },
 
   // Get current user profile
-  getProfile: async (): Promise<User> => {
+  getProfile: async (skipCache: boolean = false): Promise<User> => {
+    if (skipCache) {
+      invalidateClientCache("/api/auth/profile/");
+    }
     const user = await apiClient<User>("/api/auth/profile/", {
       method: "GET",
-      cacheTtl: 60,
     });
     const normalized = normalizeUser(user) || user;
     setStoredUser(normalized);
@@ -696,10 +705,28 @@ export const adminApi = {
     return apiClient("/api/analytics/dashboard/", { method: "GET", cacheTtl: 60 });
   },
 
-  getAuditLogs: async (page?: number): Promise<any> => {
-    return apiClient(`/api/analytics/audit-logs/${page ? `?page=${page}` : ""}`, {
+  getAuditLogs: async (params?: {
+    page?: number;
+    name?: string;
+    search?: string;
+    user_id?: string;
+    plan?: string;
+  } | number): Promise<any> => {
+    let qs = "";
+    if (typeof params === "number") {
+      qs = `?page=${params}`;
+    } else if (params && typeof params === "object") {
+      const sp = new URLSearchParams();
+      if (params.page) sp.set("page", params.page.toString());
+      if (params.name) sp.set("name", params.name);
+      if (params.search) sp.set("search", params.search);
+      if (params.user_id) sp.set("user_id", params.user_id);
+      if (params.plan) sp.set("plan", params.plan);
+      qs = sp.toString() ? `?${sp.toString()}` : "";
+    }
+    return apiClient(`/api/analytics/audit-logs/${qs}`, {
       method: "GET",
-      cacheTtl: 60,
+      cacheTtl: 15,
     });
   },
 

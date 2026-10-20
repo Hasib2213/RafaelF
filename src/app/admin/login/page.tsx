@@ -7,19 +7,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Eye, EyeOff, ShieldCheck, Lock, Headphones, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import CurioLogo from "@/components/CurioLogo";
 import { motion } from "framer-motion";
-import { authApi } from "@/lib/api";
+import { authApi, clearAuthSession } from "@/lib/api";
 
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResetSuccess = searchParams.get("reset") === "true";
+  const isUnauthorized = searchParams.get("error") === "unauthorized";
   const initialEmail = searchParams.get("email") ? decodeURIComponent(searchParams.get("email")!) : "";
 
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    isUnauthorized ? "*Access denied: Account does not have administrator privileges.*" : null
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +45,11 @@ function AdminLoginForm() {
 
     try {
       const res = await authApi.login({ email: trimmedEmail, password });
-      if (!res.user.is_staff && res.user.role !== "admin") {
+      if (!res.user.is_staff && res.user.role !== "admin" && !res.user.is_superuser) {
+        clearAuthSession();
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("curio_admin_user");
+        }
         setError("*Access denied: Account does not have administrator privileges.*");
         return;
       }
@@ -50,6 +57,7 @@ function AdminLoginForm() {
       // Store admin session
       if (typeof window !== "undefined") {
         localStorage.setItem("curio_admin_user", JSON.stringify(res.user));
+        localStorage.setItem("curio_admin_token", res.access);
       }
 
       router.push("/admin/dashboard");

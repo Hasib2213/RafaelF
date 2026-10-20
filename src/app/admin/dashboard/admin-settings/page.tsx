@@ -186,6 +186,13 @@ export default function AdminSettingsPage() {
       try {
         const profile = await authApi.getProfile();
         if (isMounted && profile) {
+          if (profile.role !== "admin" && !profile.is_staff && !profile.is_superuser) {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("curio_admin_user");
+              window.location.href = "/admin/login?error=unauthorized";
+            }
+            return;
+          }
           profileData = profile;
           setAdminInfo({
             firstName: profile.first_name || "",

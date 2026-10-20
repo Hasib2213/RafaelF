@@ -49,15 +49,41 @@ function CompleteActivityAuditContent() {
   const [isExporting, setIsExporting] = useState(false);
   const [apiLogs, setApiLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalEvents: 0,
+    contentSessions: 0,
+    authChecks: 0,
+    securityFlags: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
     async function loadAuditLogs() {
       setIsLoading(true);
       try {
-        const res = await adminApi.getAuditLogs(currentPage);
+        const isGeneric = !userName || userName.toLowerCase() === "user activity audit";
+        const res = await adminApi.getAuditLogs({
+          page: currentPage,
+          name: isGeneric ? undefined : userName,
+        });
         if (isMounted && res) {
           const list = Array.isArray(res) ? res : res.results || [];
+          if (res.stats) {
+            setStats({
+              totalEvents: res.stats.total_events ?? list.length,
+              contentSessions: res.stats.content_sessions ?? 0,
+              authChecks: res.stats.auth_checks ?? 0,
+              securityFlags: res.stats.security_flags ?? 0,
+            });
+          } else {
+            setStats({
+              totalEvents: list.length,
+              contentSessions: list.filter((i: any) => (i.activity_type || "").includes("Audio") || (i.description || "").includes("briefing")).length,
+              authChecks: list.filter((i: any) => (i.activity_type || "").includes("Login") || (i.activity_type || "").includes("Registered")).length,
+              securityFlags: 0,
+            });
+          }
+
           const mapped: AuditLogEntry[] = list.map((item: any) => ({
             id: item.id ? `LOG-${item.id.toString().slice(-4)}` : `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
             timestamp: item.created_at
@@ -73,7 +99,7 @@ function CompleteActivityAuditContent() {
             category: (["Reading", "Security", "Billing", "Audiobook", "Review", "Bookmark", "Milestone"].includes(item.category)
               ? item.category
               : "Security") as any,
-            title: item.title || item.action || "User Activity Logged",
+            title: item.title || item.activity_type || item.action || "User Activity Logged",
             description: item.description || item.details || "Activity details processed by server.",
             device: item.device || item.user_agent || "Web Client",
             ip: item.ip_address || item.ip || "127.0.0.1",
@@ -93,7 +119,7 @@ function CompleteActivityAuditContent() {
     return () => {
       isMounted = false;
     };
-  }, [currentPage]);
+  }, [currentPage, userName]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -363,7 +389,7 @@ function CompleteActivityAuditContent() {
               <span>Back <span className="hidden xs:inline">to User Details</span></span>
             </Link>
             <span className="text-white/30 hidden md:inline">/</span>
-            <span className="text-sm font-medium text-[#B5C8DB] hidden md:inline truncate max-w-[120px]">Lebron James</span>
+            <span className="text-sm font-medium text-[#B5C8DB] hidden md:inline truncate max-w-[140px]">{userName}</span>
             <span className="text-white/30 hidden lg:inline">/</span>
             <span className="text-sm font-semibold text-white hidden lg:inline truncate">Complete Activity Audit</span>
           </div>
@@ -433,7 +459,7 @@ function CompleteActivityAuditContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    1,450
+                    {stats.totalEvents.toLocaleString()}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,7 +478,7 @@ function CompleteActivityAuditContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    892
+                    {stats.contentSessions.toLocaleString()}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -471,7 +497,7 @@ function CompleteActivityAuditContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-white tracking-tight leading-[140%]">
-                    84
+                    {stats.authChecks.toLocaleString()}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-[rgba(255,239,223,0.3)] flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -490,7 +516,7 @@ function CompleteActivityAuditContent() {
               <div className="flex flex-col justify-center w-full gap-2">
                 <div className="flex items-center justify-between w-full">
                   <span className="font-['Lato'] font-medium text-2xl text-emerald-400 tracking-tight leading-[140%]">
-                    0 (Clean)
+                    {stats.securityFlags > 0 ? `${stats.securityFlags} Flagged` : "0 (Clean)"}
                   </span>
                   <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

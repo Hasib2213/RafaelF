@@ -118,7 +118,7 @@ const COUNTRIES = [
 type CardType = "visa" | "mastercard" | "credit-card";
 
 import { useAuth } from "@/context/AuthContext";
-import { subscriptionsApi } from "@/lib/api";
+import { subscriptionsApi, invalidateClientCache } from "@/lib/api";
 import { AlertCircle } from "lucide-react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
@@ -169,6 +169,7 @@ function CheckoutContent() {
     hasProcessedStatusRef.current = true;
 
     if (statusParam === "success") {
+      invalidateClientCache();
       setIsSuccess(true);
       refreshUser();
     } else if (statusParam === "failed") {
@@ -176,7 +177,7 @@ function CheckoutContent() {
     } else if (statusParam === "cancelled") {
       setErrorMessage("Payment was cancelled. You have not been charged.");
     }
-  }, [statusParam]);
+  }, [statusParam, refreshUser]);
 
   // Sync user info when available
   useEffect(() => {

@@ -63,11 +63,24 @@ const defaultPlans: PlanConfig[] = [
 ];
 
 export default function InAppPricingPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const [plans, setPlans] = useState<PlanConfig[]>(defaultPlans);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("pro");
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Always refresh freshest user profile when visiting Pricing page
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  // Set selected plan based on current user's active tier
+  useEffect(() => {
+    if (user?.plan) {
+      const planKey = user.plan.toLowerCase();
+      setSelectedPlanId(planKey);
+    }
+  }, [user?.plan]);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,6 +88,7 @@ export default function InAppPricingPage() {
       try {
         const fetched = await subscriptionsApi.getPlans();
         if (isMounted && Array.isArray(fetched) && fetched.length > 0) {
+          const userPlanName = user?.plan?.toLowerCase();
           const mapped: PlanConfig[] = fetched.map((p: any) => {
             const rawPrice = parseFloat(p.price || "0");
             const priceFormatted = rawPrice % 1 === 0 ? `$${rawPrice.toFixed(0)}` : `$${rawPrice.toFixed(2)}`;
@@ -83,17 +97,19 @@ export default function InAppPricingPage() {
               : typeof p.features === "string"
               ? p.features.split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
               : [];
+            const planSlug = (p.slug || p.name || "").toLowerCase();
+            const isCurrentPlan = userPlanName === planSlug;
             return {
               id: p.slug || p.id,
               name: p.name,
               price: priceFormatted,
               period: p.period || (p.billing_cycle === "yearly" ? "/per year" : "/per month"),
-              badgeText: p.badge_text || undefined,
-              isPopular: !!p.is_popular,
-              isHighlighted: !!p.is_best_offer,
+              badgeText: isCurrentPlan ? "Active Plan" : (p.badge_text || undefined),
+              isPopular: !isCurrentPlan && !!p.is_popular,
+              isHighlighted: isCurrentPlan || !!p.is_best_offer,
               features: rawFeatures,
-              buttonText: p.slug === "free" ? "Apply Now" : `Apply for ${p.name}`,
-              buttonHref: `/checkout?plan=${p.slug || p.id}&plan_id=${p.id}`,
+              buttonText: isCurrentPlan ? "Current Plan" : (p.slug === "free" ? "Apply Now" : `Apply for ${p.name}`),
+              buttonHref: isCurrentPlan ? undefined : `/checkout?plan=${p.slug || p.id}&plan_id=${p.id}`,
             };
           });
           setPlans(mapped);
@@ -106,7 +122,7 @@ export default function InAppPricingPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user?.plan]);
 
   const activePlanId = hoveredPlanId || selectedPlanId;
 

@@ -8,6 +8,7 @@ import {
   getAccessToken,
   clearAuthSession,
   setAuthSession,
+  invalidateClientCache,
 } from "@/lib/api";
 
 interface AuthContextType {
@@ -39,7 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // Fetch freshest user profile in background
           try {
-            const profile = await authApi.getProfile();
+            invalidateClientCache("/api/auth/profile/");
+            const profile = await authApi.getProfile(true);
             setUser(profile);
           } catch {
             // If token expired and cannot be refreshed, user is cleared in api.ts
@@ -73,7 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async (): Promise<User | null> => {
     try {
-      const updated = await authApi.getProfile();
+      invalidateClientCache("/api/auth/profile/");
+      const updated = await authApi.getProfile(true);
       setUser(updated);
       return updated;
     } catch {

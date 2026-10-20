@@ -3,21 +3,81 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { authApi } from "@/lib/api";
+
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const adminUser = localStorage.getItem("curio_admin_user");
-      const token = localStorage.getItem("curio_access_token");
+    let isMounted = true;
 
-      if (!adminUser || !token) {
+    async function checkAdminAuth() {
+      if (typeof window === "undefined") return;
+
+      const token = localStorage.getItem("curio_admin_token") || localStorage.getItem("curio_access_token");
+      const storedAdmin = localStorage.getItem("curio_admin_user");
+
+      if (!token) {
+        localStorage.removeItem("curio_admin_user");
+        localStorage.removeItem("curio_admin_token");
         router.replace("/admin/login");
         return;
       }
-      setIsAuthorized(true);
+
+      // Check locally stored admin info first
+      let currentLocalAdmin: any = null;
+      try {
+        if (storedAdmin) {
+          currentLocalAdmin = JSON.parse(storedAdmin);
+        }
+      } catch {
+        // ignore parse error
+      }
+
+      if (
+        currentLocalAdmin &&
+        currentLocalAdmin.role !== "admin" &&
+        !currentLocalAdmin.is_staff &&
+        !currentLocalAdmin.is_superuser
+      ) {
+        localStorage.removeItem("curio_admin_user");
+        localStorage.removeItem("curio_admin_token");
+        router.replace("/admin/login?error=unauthorized");
+        return;
+      }
+
+      // Verify session and role directly with the backend profile endpoint
+      try {
+        const profile = await authApi.getProfile();
+        if (!isMounted) return;
+
+        if (
+          !profile ||
+          (profile.role !== "admin" && !profile.is_staff && !profile.is_superuser)
+        ) {
+          localStorage.removeItem("curio_admin_user");
+          localStorage.removeItem("curio_admin_token");
+          router.replace("/admin/login?error=unauthorized");
+          return;
+        }
+
+        // Active session confirmed as admin
+        localStorage.setItem("curio_admin_user", JSON.stringify(profile));
+        setIsAuthorized(true);
+      } catch {
+        if (!isMounted) return;
+        localStorage.removeItem("curio_admin_user");
+        localStorage.removeItem("curio_admin_token");
+        router.replace("/admin/login");
+      }
     }
+
+    checkAdminAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   if (!isAuthorized) {
