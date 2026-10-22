@@ -108,7 +108,7 @@ export default function BriefingCard({ briefing, onOpenModal }: BriefingCardProp
         </div>
 
         {/* Duration Badge (Figma Frame 2147239871: 43px x 26px, top 10px, right 10px) */}
-        <div className="absolute top-2.5 right-2.5 w-[43px] h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 flex items-center justify-center text-xs font-normal text-white font-['Lato',sans-serif]">
+        <div className="absolute top-2.5 right-2.5 min-w-[43px] w-auto px-1.5 h-[26px] rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 flex items-center justify-center text-xs font-normal text-white font-['Lato',sans-serif]">
           {briefing.duration}
         </div>
       </div>
