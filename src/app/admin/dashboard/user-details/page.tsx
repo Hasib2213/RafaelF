@@ -51,6 +51,7 @@ function UserDetailsContent() {
   const queryId = searchParams.get("id");
   const queryName = searchParams.get("name") || "";
   const queryPlan = searchParams.get("plan") || "Free Member";
+  const queryAvatar = searchParams.get("avatar");
 
   const [userId] = useState<string | null>(queryId);
   const [userName, setUserName] = useState<string>(queryName || "User");
@@ -64,7 +65,7 @@ function UserDetailsContent() {
   const [savedBriefingsCount, setSavedBriefingsCount] = useState<number>(0);
   const [userPhone, setUserPhone] = useState<string>("Not specified");
   const [userAddress, setUserAddress] = useState<string>("Not specified");
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(queryAvatar || null);
   const [transactions, setTransactions] = useState<PurchaseHistoryItem[]>([]);
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
@@ -821,7 +822,7 @@ function UserDetailsContent() {
 
                 <div className="pt-2 border-t border-white/10">
                   <Link
-                    href={`/admin/dashboard/user-details/activity-audit?name=${encodeURIComponent(userName)}`}
+                    href={`/admin/dashboard/user-details/activity-audit?name=${encodeURIComponent(userName)}${queryId || userId ? `&id=${encodeURIComponent(queryId || userId || "")}` : ""}${userAvatar ? `&avatar=${encodeURIComponent(userAvatar)}` : ""}`}
                     className="w-full py-2.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer group"
                   >
                     <span>View Complete Activity Audit</span>

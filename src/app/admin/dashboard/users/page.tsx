@@ -5,7 +5,7 @@ import Link from "next/link";
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
-import { adminApi } from "@/lib/api";
+import { adminApi, resolveAvatarUrl } from "@/lib/api";
 import {
   SideNavDashboardIcon,
   SideNavUsersIcon,
@@ -34,6 +34,7 @@ interface UserActivityRow {
   activityDesc: string;
   rating?: number;
   email: string;
+  avatar?: string;
 }
 
 function UserTypeBadge({ type }: { type: PlanType }) {
@@ -188,6 +189,7 @@ export default function UserManagementPage() {
             activityTitle: u.is_suspended ? "Suspended" : "Active Member",
             activityDesc: u.is_suspended ? (u.suspension_reason || "Account suspended") : `Joined as ${u.plan || "Free"} member`,
             email: u.email,
+            avatar: u.avatar_url || u.avatar,
           }));
           setApiUsers(mapped);
 
@@ -584,7 +586,24 @@ export default function UserManagementPage() {
                           <div className="flex items-center justify-start">
                             <UserTypeBadge type={row.userType} />
                           </div>
-                          <div className="flex items-center justify-start">
+                          <div className="flex items-center justify-start gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden border border-white/20">
+                              {row.avatar ? (
+                                <img
+                                  src={resolveAvatarUrl(row.avatar)}
+                                  alt={row.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = "none";
+                                    const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                                    if (nextSpan) nextSpan.classList.remove("hidden");
+                                  }}
+                                />
+                              ) : null}
+                              <span className={row.avatar ? "hidden" : ""}>
+                                {row.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
                             <span className="font-['Lato'] font-normal text-[15px] text-white truncate max-w-[112px]">{row.name}</span>
                           </div>
                           <div className="flex flex-col justify-center items-start gap-[2px] overflow-hidden">
@@ -603,7 +622,7 @@ export default function UserManagementPage() {
                           </div>
                           <div className="flex items-center justify-center">
                             <Link
-                              href={`/admin/dashboard/user-details?id=${encodeURIComponent(row.id)}&name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}`}
+                              href={`/admin/dashboard/user-details?id=${encodeURIComponent(row.id)}&name=${encodeURIComponent(row.name)}&plan=${encodeURIComponent(row.userType)}${row.avatar ? `&avatar=${encodeURIComponent(row.avatar)}` : ""}`}
                               title={`View ${row.name}'s Profile`}
                               className="w-8 h-8 rounded-[2px] flex items-center justify-center text-[#B5C8DB] hover:text-white hover:bg-white/20 transition-all cursor-pointer active:scale-95"
                             >

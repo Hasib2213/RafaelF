@@ -41,9 +41,16 @@ interface FeedSidebarProps {
 
 export default function FeedSidebar({ mobileOpen = false, onMobileClose }: FeedSidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  const isPremium =
+    user?.role === "admin" ||
+    user?.is_staff ||
+    user?.is_superuser ||
+    user?.plan === "Pro" ||
+    user?.plan === "Enterprise";
 
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false);
@@ -124,24 +131,50 @@ export default function FeedSidebar({ mobileOpen = false, onMobileClose }: FeedS
 
       {/* Bottom Section: Premium Banner & Log Out (Figma Frame 2147239891) */}
       <div className="flex flex-col gap-4 mt-6">
-        {/* Premium Card */}
-        <div className="bg-white/20 border border-white/10 rounded-lg p-3.5 flex flex-col items-center text-center gap-2.5 shadow-md backdrop-blur-sm">
-          <div className="w-11 h-11 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-[#FFB216]">
-            <Crown className="w-6 h-6 fill-[#FFB216]/80 text-[#FFB216]" />
+        {/* Premium Card or Active Pro Status */}
+        {!isPremium ? (
+          <div className="bg-white/20 border border-white/10 rounded-lg p-3.5 flex flex-col items-center text-center gap-2.5 shadow-md backdrop-blur-sm">
+            <div className="w-11 h-11 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-[#FFB216]">
+              <Crown className="w-6 h-6 fill-[#FFB216]/80 text-[#FFB216]" />
+            </div>
+
+            <p className="text-sm text-white font-normal leading-snug font-['Lato',sans-serif]">
+              Go Premium to unlock full creative control.
+            </p>
+
+            <Link
+              href="/pricing"
+              onClick={() => onMobileClose?.()}
+              className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] text-white text-sm font-semibold flex items-center justify-center shadow-lg shadow-purple-900/40 hover:brightness-110 active:scale-95 transition-all select-none font-['Lato',sans-serif]"
+            >
+              Upgrade Now
+            </Link>
           </div>
+        ) : (
+          <div className="bg-gradient-to-br from-[#2563EB]/25 via-[#7A3BED]/30 to-[#A842D4]/25 border border-purple-400/40 rounded-lg p-3.5 flex flex-col gap-2.5 shadow-md backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-[#FFB216] shrink-0">
+                <Crown className="w-5 h-5 fill-[#FFB216] text-[#FFB216]" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white tracking-wide uppercase font-['Lato',sans-serif]">
+                  {user?.plan || "Pro"} Plan
+                </span>
+                <span className="text-xs text-emerald-300 font-medium truncate font-['Lato',sans-serif]">
+                  ● Active Membership
+                </span>
+              </div>
+            </div>
 
-          <p className="text-sm text-white font-normal leading-snug font-['Lato',sans-serif]">
-            Go Premium to unlock full creative control.
-          </p>
-
-          <Link
-            href="/pricing"
-            onClick={() => onMobileClose?.()}
-            className="w-full h-11 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] text-white text-sm font-semibold flex items-center justify-center shadow-lg shadow-purple-900/40 hover:brightness-110 active:scale-95 transition-all select-none font-['Lato',sans-serif]"
-          >
-            Upgrade Now
-          </Link>
-        </div>
+            <Link
+              href="/pricing"
+              onClick={() => onMobileClose?.()}
+              className="w-full h-9 rounded-lg bg-gradient-to-r from-[#2563EB] via-[#7A3BED] to-[#A842D4] text-white text-xs font-semibold flex items-center justify-center shadow-md shadow-purple-900/40 hover:brightness-110 active:scale-95 transition-all select-none font-['Lato',sans-serif]"
+            >
+              Manage / Upgrade Plan
+            </Link>
+          </div>
+        )}
 
         {/* Log Out Button */}
         <button

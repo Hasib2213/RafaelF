@@ -10,7 +10,7 @@ import {
 } from "./types/auth";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8055";
+  (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8055").trim();
 
 const ACCESS_TOKEN_KEY = "curio_access_token";
 const REFRESH_TOKEN_KEY = "curio_refresh_token";
@@ -178,11 +178,13 @@ async function refreshAccessToken(): Promise<string | null> {
 interface RequestOptions extends RequestInit {
   skipAuth?: boolean;
   cacheTtl?: number; // In seconds. Only applies to GET requests
+  swr?: boolean; // Enable Stale-While-Revalidate (default: true when cacheTtl is provided)
 }
 
 // Client-side in-memory cache and in-flight request deduplication
 interface ClientCacheEntry<T> {
   data: T;
+  timestamp: number;
   expiry: number;
 }
 const clientMemoryCache = new Map<string, ClientCacheEntry<any>>();
@@ -200,25 +202,110 @@ export function invalidateClientCache(prefix?: string): void {
   }
 }
 
-// Core fetch wrapper
+// Automatically purge relevant client cache entries when any mutation occurs
+export function autoInvalidateOnMutation(endpoint: string, method: string): void {
+  if (method === "GET") return;
+
+  const clean = endpoint.toLowerCase();
+  if (clean.includes("/api/auth/profile")) {
+    invalidateClientCache("/api/auth/profile");
+  }
+  if (clean.includes("/api/briefings")) {
+    invalidateClientCache("/api/briefings");
+    invalidateClientCache("/api/analytics/dashboard");
+  }
+  if (clean.includes("/api/creators")) {
+    invalidateClientCache("/api/creators");
+  }
+  if (clean.includes("/api/library")) {
+    invalidateClientCache("/api/library");
+  }
+  if (clean.includes("/api/auth/notifications")) {
+    invalidateClientCache("/api/auth/notifications");
+  }
+  if (clean.includes("/api/feedback")) {
+    invalidateClientCache("/api/feedback");
+    invalidateClientCache("/api/analytics/dashboard");
+  }
+  if (clean.includes("/api/subscriptions")) {
+    invalidateClientCache("/api/subscriptions");
+    invalidateClientCache("/api/analytics/dashboard");
+  }
+  if (clean.includes("/api/settings")) {
+    invalidateClientCache("/api/settings");
+  }
+  if (clean.includes("/api/auth/admin/users") || clean.includes("/api/auth/register")) {
+    invalidateClientCache("/api/auth/admin/users");
+    invalidateClientCache("/api/analytics/dashboard");
+    invalidateClientCache("/api/analytics/user-locations");
+  }
+  if (clean.includes("/api/analytics")) {
+    invalidateClientCache("/api/analytics");
+  }
+}
+
+// Core fetch wrapper with SWR (Stale-While-Revalidate) & ngrok warning bypass
 export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { skipAuth = false, cacheTtl, headers = {}, ...restOptions } = options;
+  const { skipAuth = false, cacheTtl, swr = true, headers = {}, ...restOptions } = options;
   const method = (restOptions.method || "GET").toUpperCase();
 
-  const url = endpoint.startsWith("http")
+  let url = endpoint.startsWith("http")
     ? endpoint
     : `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
+  // Automatically append ngrok bypass query param for ngrok URLs
+  if (url.includes("ngrok") && !url.includes("ngrok-skip-browser-warning")) {
+    const separator = url.includes("?") ? "&" : "?";
+    url = `${url}${separator}ngrok-skip-browser-warning=true`;
+  }
+
   const cacheKey = `${method}:${url}`;
 
-  // Check in-memory cache for valid cached response
+  // Stale-While-Revalidate (SWR) cache check for GET requests
   if (cacheTtl && method === "GET") {
     const cached = clientMemoryCache.get(cacheKey);
-    if (cached && Date.now() < cached.expiry) {
-      return cached.data as T;
+    const now = Date.now();
+
+    if (cached) {
+      // 1. Fresh cache HIT -> 0ms instant response
+      if (now < cached.expiry) {
+        return cached.data as T;
+      }
+
+      // 2. Stale cache HIT -> Return cached data immediately, revalidate silently in background!
+      if (swr) {
+        if (!inFlightRequests.has(cacheKey)) {
+          const backgroundRevalidation = executeFetch()
+            .then((freshData) => {
+              clientMemoryCache.set(cacheKey, {
+                data: freshData,
+                timestamp: Date.now(),
+                expiry: Date.now() + cacheTtl * 1000,
+              });
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("curio_cache_updated", {
+                    detail: { key: cacheKey, data: freshData },
+                  })
+                );
+              }
+              return freshData;
+            })
+            .catch((err) => {
+              console.warn(`[SWR Revalidation Notice] ${url}:`, err?.message || err);
+            })
+            .finally(() => {
+              inFlightRequests.delete(cacheKey);
+            });
+
+          inFlightRequests.set(cacheKey, backgroundRevalidation);
+        }
+
+        return cached.data as T;
+      }
     }
 
     // Deduplicate in-flight requests
@@ -227,8 +314,13 @@ export async function apiClient<T = any>(
     }
   }
 
-  const executeFetch = async (): Promise<T> => {
+  async function executeFetch(): Promise<T> {
     const requestHeaders = new Headers(headers);
+
+    // Bypass ngrok free browser warning page for API calls
+    if (!requestHeaders.has("ngrok-skip-browser-warning")) {
+      requestHeaders.set("ngrok-skip-browser-warning", "true");
+    }
 
     // If not FormData, default to application/json
     if (!(restOptions.body instanceof FormData) && !requestHeaders.has("Content-Type")) {
@@ -238,7 +330,10 @@ export async function apiClient<T = any>(
     // Attach token if needed
     if (!skipAuth) {
       let token = getAccessToken();
-      if (typeof window !== "undefined" && (endpoint.includes("/admin/") || window.location.pathname.startsWith("/admin"))) {
+      if (
+        typeof window !== "undefined" &&
+        (endpoint.includes("/admin/") || window.location.pathname.startsWith("/admin"))
+      ) {
         const adminToken = localStorage.getItem("curio_admin_token");
         if (adminToken) {
           token = adminToken;
@@ -292,12 +387,18 @@ export async function apiClient<T = any>(
     if (cacheTtl && method === "GET") {
       clientMemoryCache.set(cacheKey, {
         data: data as T,
+        timestamp: Date.now(),
         expiry: Date.now() + cacheTtl * 1000,
       });
     }
 
+    // Automatic client cache invalidation on any mutations (POST, PUT, PATCH, DELETE)
+    if (method !== "GET") {
+      autoInvalidateOnMutation(endpoint, method);
+    }
+
     return data as T;
-  };
+  }
 
   if (cacheTtl && method === "GET") {
     const fetchPromise = executeFetch().finally(() => {
@@ -314,9 +415,13 @@ export async function apiClient<T = any>(
 export const authApi = {
   // Login
   login: async (credentials: LoginPayload): Promise<LoginResponse> => {
+    const payload = {
+      ...credentials,
+      email: credentials.email ? credentials.email.trim().toLowerCase() : "",
+    };
     const res = await apiClient<LoginResponse>("/api/auth/login/", {
       method: "POST",
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(payload),
       skipAuth: true,
     });
     const normalizedUser = normalizeUser(res.user) || res.user;
@@ -328,9 +433,15 @@ export const authApi = {
   register: async (
     payload: RegisterPayload
   ): Promise<{ message: string; user: User }> => {
+    const cleanPayload = {
+      ...payload,
+      email: payload.email ? payload.email.trim().toLowerCase() : "",
+      first_name: payload.first_name?.trim() || "",
+      last_name: payload.last_name?.trim() || "",
+    };
     const res = await apiClient<{ message: string; user: User }>("/api/auth/register/", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(cleanPayload),
       skipAuth: true,
     });
     if (res && res.user) {
@@ -346,6 +457,7 @@ export const authApi = {
     }
     const user = await apiClient<User>("/api/auth/profile/", {
       method: "GET",
+      cacheTtl: skipCache ? undefined : 1800,
     });
     const normalized = normalizeUser(user) || user;
     setStoredUser(normalized);
@@ -379,9 +491,13 @@ export const authApi = {
   forgotPassword: async (
     payload: ForgotPasswordPayload
   ): Promise<{ message: string; email: string; otp?: string; expires_in_minutes: number }> => {
+    const clean = {
+      ...payload,
+      email: payload.email ? payload.email.trim().toLowerCase() : "",
+    };
     return apiClient("/api/auth/forgot-password/", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(clean),
       skipAuth: true,
     });
   },
@@ -390,9 +506,13 @@ export const authApi = {
   verifyOtp: async (
     payload: VerifyOtpPayload
   ): Promise<{ message: string; valid?: boolean }> => {
+    const clean = {
+      ...payload,
+      email: payload.email ? payload.email.trim().toLowerCase() : "",
+    };
     return apiClient("/api/auth/verify-otp/", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(clean),
       skipAuth: true,
     });
   },
@@ -401,9 +521,13 @@ export const authApi = {
   resetPassword: async (
     payload: ResetPasswordPayload
   ): Promise<{ message: string }> => {
+    const clean = {
+      ...payload,
+      email: payload.email ? payload.email.trim().toLowerCase() : "",
+    };
     return apiClient("/api/auth/reset-password/", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(clean),
       skipAuth: true,
     });
   },
@@ -455,7 +579,7 @@ export const briefingsApi = {
     const qs = query.toString();
     return apiClient<PaginatedResponse<Briefing>>(
       `/api/briefings/${qs ? `?${qs}` : ""}`,
-      { method: "GET", cacheTtl: 60 }
+      { method: "GET", cacheTtl: 1800 }
     );
   },
 
@@ -477,11 +601,11 @@ export const briefingsApi = {
 // Creators API
 export const creatorsApi = {
   list: async (): Promise<PaginatedResponse<Creator> | Creator[]> => {
-    return apiClient("/api/creators/", { method: "GET", cacheTtl: 120 });
+    return apiClient("/api/creators/", { method: "GET", cacheTtl: 1800 });
   },
 
   getFollowing: async (): Promise<Creator[]> => {
-    const res = await apiClient<any>("/api/creators/following/", { method: "GET", cacheTtl: 60 });
+    const res = await apiClient<any>("/api/creators/following/", { method: "GET", cacheTtl: 1800 });
     return Array.isArray(res) ? res : res.results || [];
   },
 
@@ -521,7 +645,7 @@ export const libraryApi = {
     if (params?.sort) sp.set("sort", params.sort);
     if (params?.search) sp.set("search", params.search);
     const query = sp.toString() ? `?${sp.toString()}` : "";
-    return apiClient(`/api/library/${query}`, { method: "GET", cacheTtl: 60 });
+    return apiClient(`/api/library/${query}`, { method: "GET", cacheTtl: 1800 });
   },
 
   toggleSave: async (
@@ -549,7 +673,7 @@ export const notificationsApi = {
   list: async (): Promise<PaginatedResponse<NotificationItem>> => {
     return apiClient<PaginatedResponse<NotificationItem>>("/api/auth/notifications/", {
       method: "GET",
-      cacheTtl: 30,
+      cacheTtl: 300,
     });
   },
 
@@ -584,7 +708,7 @@ export const feedbackApi = {
   },
 
   getMyFeedback: async (): Promise<any[]> => {
-    const res = await apiClient<any>("/api/feedback/my-feedback/", { method: "GET", cacheTtl: 60 });
+    const res = await apiClient<any>("/api/feedback/my-feedback/", { method: "GET", cacheTtl: 1800 });
     return Array.isArray(res) ? res : res.results || [];
   },
 
@@ -592,7 +716,7 @@ export const feedbackApi = {
     const res = await apiClient<any>("/api/feedback/featured/", {
       method: "GET",
       skipAuth: true,
-      cacheTtl: 180,
+      cacheTtl: 3600,
     });
     return Array.isArray(res) ? res : res.results || [];
   },
@@ -603,7 +727,7 @@ export const subscriptionsApi = {
   getPlans: async (): Promise<SubscriptionPlan[]> => {
     const res = await apiClient<any>("/api/subscriptions/plans/", {
       method: "GET",
-      cacheTtl: 300,
+      cacheTtl: 3600,
     });
     return Array.isArray(res) ? res : res.results || [];
   },
@@ -628,7 +752,7 @@ export const subscriptionsApi = {
   },
 
   getMyStatus: async (): Promise<any> => {
-    return apiClient("/api/subscriptions/my-status/", { method: "GET" });
+    return apiClient("/api/subscriptions/my-status/", { method: "GET", cacheTtl: 300 });
   },
 
   getTransactions: async (): Promise<any[]> => {
@@ -644,7 +768,7 @@ export const subscriptionsApi = {
 // Settings & Contact API
 export const settingsApi = {
   getSettings: async (): Promise<any> => {
-    return apiClient("/api/settings/", { method: "GET", cacheTtl: 300 });
+    return apiClient("/api/settings/", { method: "GET", cacheTtl: 3600 });
   },
 
   sendContactMessage: async (
@@ -678,12 +802,12 @@ export const adminApi = {
     const qs = query.toString();
     return apiClient(`/api/auth/admin/users/${qs ? `?${qs}` : ""}`, {
       method: "GET",
-      cacheTtl: 60,
+      cacheTtl: 1800,
     });
   },
 
   getUserDetail: async (userId: string): Promise<any> => {
-    return apiClient(`/api/auth/admin/users/${userId}/`, { method: "GET", cacheTtl: 60 });
+    return apiClient(`/api/auth/admin/users/${userId}/`, { method: "GET", cacheTtl: 1800 });
   },
 
   suspendUser: async (
@@ -702,7 +826,7 @@ export const adminApi = {
   },
 
   getAnalyticsDashboard: async (): Promise<any> => {
-    return apiClient("/api/analytics/dashboard/", { method: "GET", cacheTtl: 60 });
+    return apiClient("/api/analytics/dashboard/", { method: "GET", cacheTtl: 1800 });
   },
 
   getAuditLogs: async (params?: {
@@ -726,12 +850,12 @@ export const adminApi = {
     }
     return apiClient(`/api/analytics/audit-logs/${qs}`, {
       method: "GET",
-      cacheTtl: 15,
+      cacheTtl: 300,
     });
   },
 
   getReviews: async (): Promise<any> => {
-    return apiClient("/api/feedback/admin/reviews/", { method: "GET", cacheTtl: 60 });
+    return apiClient("/api/feedback/admin/reviews/", { method: "GET", cacheTtl: 1800 });
   },
 
   toggleFeatureReview: async (reviewId: string): Promise<any> => {
@@ -776,7 +900,7 @@ export const adminApi = {
     const query = plan && plan !== "ALL" ? `?plan=${encodeURIComponent(plan)}` : "";
     return apiClient<UserLocationsResponse>(`/api/analytics/user-locations/${query}`, {
       method: "GET",
-      cacheTtl: 30,
+      cacheTtl: 1800,
     });
   },
 };

@@ -56,7 +56,8 @@ function SignUpFormContent() {
       setError("Please enter your first name.");
       return;
     }
-    if (!email.trim() || !email.includes("@")) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -72,14 +73,14 @@ function SignUpFormContent() {
     setIsLoading(true);
     try {
       await authApi.register({
-        email: email.trim(),
+        email: cleanEmail,
         password,
         confirm_password: confirmPassword,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
       });
 
-      const encodedEmail = encodeURIComponent(email.trim());
+      const encodedEmail = encodeURIComponent(cleanEmail);
       const redirectQuery = redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : "";
       router.push(`/login?registered=true&email=${encodedEmail}${redirectQuery}`);
     } catch (err: any) {
@@ -255,9 +256,12 @@ function SignUpFormContent() {
                   <input
                     type="email"
                     required
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder="jonsnow464@gmail.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
                     className="w-full h-12 pl-4 pr-12 rounded-lg bg-[#27273F] border border-[#383850] text-[#D0D0D0] placeholder-[#D0D0D0]/40 text-base outline-none focus:border-[#7A3BED] focus:ring-1 focus:ring-[#7A3BED] transition-all"
                   />
                   <div className="absolute right-4 pointer-events-none text-[#B5C8DB]">

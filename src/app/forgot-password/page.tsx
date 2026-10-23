@@ -74,7 +74,7 @@ function ForgotPasswordForm() {
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value.toLowerCase();
     setEmail(value);
     if (hasSubmittedEmail) {
       if (!validateEmailFormat(value)) {
@@ -97,8 +97,9 @@ function ForgotPasswordForm() {
     setEmailError(null);
     setIsLoading(true);
 
+    const cleanEmail = email.trim().toLowerCase();
     try {
-      await authApi.forgotPassword({ email: email.trim() });
+      await authApi.forgotPassword({ email: cleanEmail });
       setStep("otp");
       setResendTimer(30);
     } catch (err: any) {
@@ -325,6 +326,9 @@ function ForgotPasswordForm() {
                     <div className="relative flex items-center">
                       <input
                         type="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="jonsnow464@gmail.com"
                         value={email}
                         onChange={handleEmailChange}

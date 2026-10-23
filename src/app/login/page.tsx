@@ -37,7 +37,9 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered") === "true";
-  const initialEmail = searchParams.get("email") ? decodeURIComponent(searchParams.get("email")!) : "";
+  const initialEmail = searchParams.get("email")
+    ? decodeURIComponent(searchParams.get("email")!).trim().toLowerCase()
+    : "";
 
   const { login } = useAuth();
 
@@ -62,7 +64,8 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim() || !email.includes("@")) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -73,7 +76,7 @@ function LoginForm() {
 
     setIsLoading(true);
     try {
-      const res = await login({ email: email.trim(), password }, rememberMe);
+      const res = await login({ email: cleanEmail, password }, rememberMe);
       if (res.user?.is_suspended) {
         setError(`Your account has been suspended: ${res.user.suspension_reason || "Please contact support."}`);
         return;
@@ -103,18 +106,19 @@ function LoginForm() {
     e.preventDefault();
     setForgotError(null);
 
-    if (!forgotEmail.trim() || !forgotEmail.includes("@")) {
+    const cleanForgot = forgotEmail.trim().toLowerCase();
+    if (!cleanForgot || !cleanForgot.includes("@")) {
       setForgotError("Please enter a valid email address.");
       return;
     }
 
     setIsForgotLoading(true);
     try {
-      await authApi.forgotPassword({ email: forgotEmail.trim() });
+      await authApi.forgotPassword({ email: cleanForgot });
       setForgotSent(true);
       setTimeout(() => {
         setIsForgotModalOpen(false);
-        router.push(`/forgot-password?email=${encodeURIComponent(forgotEmail.trim())}`);
+        router.push(`/forgot-password?email=${encodeURIComponent(cleanForgot)}`);
       }, 1500);
     } catch (err: any) {
       setForgotError(err.message || "Failed to send reset code. Please try again.");
@@ -256,9 +260,12 @@ function LoginForm() {
                   <input
                     type="email"
                     required
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder="jonsnow464@gmail.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
                     className="w-full h-12 pl-4 pr-12 rounded-lg bg-[#27273F] border border-[#383850] text-[#D0D0D0] placeholder-[#D0D0D0]/40 text-base outline-none focus:border-[#7A3BED] focus:ring-1 focus:ring-[#7A3BED] transition-all"
                   />
                   <div className="absolute right-4 pointer-events-none text-[#B5C8DB]">
@@ -416,9 +423,12 @@ function LoginForm() {
                     <input
                       type="email"
                       required
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="jonsnow464@gmail.com"
                       value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
+                      onChange={(e) => setForgotEmail(e.target.value.toLowerCase())}
                       className="w-full h-11 px-4 rounded-lg bg-[#27273F] border border-[#383850] text-white text-sm outline-none focus:border-[#7A3BED]"
                     />
                   </div>

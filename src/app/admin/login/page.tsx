@@ -207,9 +207,12 @@ function AdminLoginForm() {
                     <input
                       type="email"
                       required
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="Enter your admin email address"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value.toLowerCase())}
                       className="w-full h-12 px-4 pr-12 rounded-lg bg-[#27273F] border border-[#383850] text-[#D0D0D0] placeholder-[#D0D0D0]/40 text-base outline-none focus:border-[#7A3BED] focus:ring-1 focus:ring-[#7A3BED] transition-all font-['Lato',sans-serif]"
                     />
                     {/* material-symbols:mail-rounded */}

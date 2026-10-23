@@ -31,7 +31,7 @@ import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
 import UserLocationMap from "@/components/admin/UserLocationMap";
 import { motion, AnimatePresence } from "framer-motion";
-import { adminApi } from "@/lib/api";
+import { adminApi, resolveAvatarUrl } from "@/lib/api";
 
 // Custom SVG Icons matching exact Figma vectors
 function DashboardGridIcon({ className = "text-white" }: { className?: string }) {
@@ -139,6 +139,7 @@ interface ActivityItem {
   rating?: number;
   dateTime: string;
   avatarColor: string;
+  avatarUrl?: string;
 }
 
 export default function AdminDashboardPage() {
@@ -228,6 +229,7 @@ export default function AdminDashboardPage() {
               rating: act.rating || undefined,
               dateTime: act.date_time || "Recent",
               avatarColor: colors[idx % colors.length],
+              avatarUrl: resolveAvatarUrl(act.avatar_url || act.avatar) || undefined,
             }));
             setActivitiesList(mappedActivities);
           }
@@ -1075,8 +1077,22 @@ export default function AdminDashboardPage() {
                         >
                           {/* User Col */}
                           <div className="w-[180px] flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${row.avatarColor} flex items-center justify-center text-xs font-bold text-white shrink-0`}>
-                              {row.name.charAt(0)}
+                            <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${row.avatarColor} flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden relative`}>
+                              {row.avatarUrl ? (
+                                <img
+                                  src={row.avatarUrl}
+                                  alt={row.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = "none";
+                                    const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                                    if (nextSpan) nextSpan.classList.remove("hidden");
+                                  }}
+                                />
+                              ) : null}
+                              <span className={row.avatarUrl ? "hidden" : ""}>
+                                {row.name.charAt(0)}
+                              </span>
                             </div>
                             <span className="text-sm sm:text-base font-normal text-white truncate">{row.name}</span>
                           </div>
@@ -1221,8 +1237,22 @@ export default function AdminDashboardPage() {
               </button>
 
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${activeActivityModal.avatarColor} flex items-center justify-center font-bold text-lg text-white shadow-lg`}>
-                  {activeActivityModal.name.charAt(0)}
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${activeActivityModal.avatarColor} flex items-center justify-center font-bold text-lg text-white shadow-lg overflow-hidden relative`}>
+                  {activeActivityModal.avatarUrl ? (
+                    <img
+                      src={activeActivityModal.avatarUrl}
+                      alt={activeActivityModal.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                        const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                        if (nextSpan) nextSpan.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <span className={activeActivityModal.avatarUrl ? "hidden" : ""}>
+                    {activeActivityModal.name.charAt(0)}
+                  </span>
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">{activeActivityModal.name}</h3>

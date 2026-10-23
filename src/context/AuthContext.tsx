@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // Fetch freshest user profile in background
           try {
-            invalidateClientCache("/api/auth/profile/");
+            invalidateClientCache("/api/auth/profile");
             const profile = await authApi.getProfile(true);
             setUser(profile);
           } catch {
@@ -55,6 +55,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
+
+    const handleFocus = () => {
+      const token = getAccessToken();
+      if (token) {
+        authApi
+          .getProfile(true)
+          .then((p) => {
+            if (p) setUser(p);
+          })
+          .catch(() => {});
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "curio_user") {
+        const updated = getStoredUser();
+        if (updated) setUser(updated);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+      window.addEventListener("storage", handleStorage);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+        window.removeEventListener("storage", handleStorage);
+      }
+    };
   }, []);
 
   const login = useCallback(async (payload: LoginPayload, rememberMe: boolean = true): Promise<LoginResponse> => {

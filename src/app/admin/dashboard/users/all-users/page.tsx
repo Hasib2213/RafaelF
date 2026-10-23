@@ -474,7 +474,19 @@ export default function AllUsersPage() {
                           <div
                             className={`w-24 h-24 sm:w-[120px] sm:h-[120px] rounded-[16px] bg-gradient-to-tr ${user.avatarColor} flex items-center justify-center text-3xl font-bold text-white shadow-lg shrink-0 overflow-hidden relative border border-white/20`}
                           >
-                            <span className="font-['Lato'] tracking-wider">
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt={user.name}
+                                className="w-full h-full object-cover rounded-[16px]"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = "none";
+                                  const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                                  if (nextSpan) nextSpan.classList.remove("hidden");
+                                }}
+                              />
+                            ) : null}
+                            <span className={`font-['Lato'] tracking-wider ${user.avatarUrl ? "hidden" : ""}`}>
                               {user.name
                                 .split(" ")
                                 .map((n) => n[0])
@@ -538,7 +550,7 @@ export default function AllUsersPage() {
 
                         {/* Primary Action Button (Primary button: 510px x 40px) */}
                         <Link
-                          href={`/admin/dashboard/user-details?id=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.name)}&plan=${encodeURIComponent(user.plan)}`}
+                          href={`/admin/dashboard/user-details?id=${encodeURIComponent(user.id)}&name=${encodeURIComponent(user.name)}&plan=${encodeURIComponent(user.plan)}${user.avatarUrl ? `&avatar=${encodeURIComponent(user.avatarUrl)}` : ""}`}
                           className="w-full h-10 rounded-[8px] flex items-center justify-center gap-2 text-white font-['Lato'] font-semibold text-[15px] sm:text-[16px] leading-[150%] shadow-md hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer"
                           style={{
                             background:

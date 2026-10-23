@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
-import { adminApi } from "@/lib/api";
+import { adminApi, resolveAvatarUrl } from "@/lib/api";
 import {
   CaretDownIcon,
   CaretLeftIcon,
@@ -39,6 +39,10 @@ function CompleteActivityAuditContent() {
   const searchParams = useSearchParams();
   const userName = searchParams.get("name") || "User Activity Audit";
   const userInitials = userName.slice(0, 2).toUpperCase();
+  const queryAvatar = searchParams.get("avatar");
+  const queryUserId = searchParams.get("id");
+  const [userAvatar, setUserAvatar] = useState<string | null>(queryAvatar || null);
+  const [avatarError, setAvatarError] = useState(false);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -55,6 +59,51 @@ function CompleteActivityAuditContent() {
     authChecks: 0,
     securityFlags: 0,
   });
+
+  useEffect(() => {
+    if (queryAvatar) {
+      setUserAvatar(queryAvatar);
+      return;
+    }
+    let isMounted = true;
+    async function resolveUserAvatar() {
+      if (queryUserId) {
+        try {
+          const u = await adminApi.getUserDetail(queryUserId);
+          if (isMounted && u && (u.avatar || u.avatar_url)) {
+            setUserAvatar(u.avatar_url || u.avatar);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (userName && userName.toLowerCase() !== "user activity audit") {
+        try {
+          const res = await adminApi.getUsers({ page_size: 100 });
+          if (isMounted && res) {
+            const list = Array.isArray(res) ? res : res.results || [];
+            const found = list.find((u: any) => {
+              const fullName = u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
+              return (
+                fullName.toLowerCase() === userName.toLowerCase() ||
+                u.email?.toLowerCase() === userName.toLowerCase()
+              );
+            });
+            if (found && (found.avatar || found.avatar_url)) {
+              setUserAvatar(found.avatar_url || found.avatar);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    resolveUserAvatar();
+    return () => {
+      isMounted = false;
+    };
+  }, [queryAvatar, queryUserId, userName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -380,7 +429,7 @@ function CompleteActivityAuditContent() {
             </button>
 
             <Link
-              href="/admin/dashboard/user-details"
+              href={queryUserId ? `/admin/dashboard/user-details?id=${encodeURIComponent(queryUserId)}&name=${encodeURIComponent(userName)}` : "/admin/dashboard/user-details"}
               className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-[#B5C8DB] hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 sm:px-3 py-1.5 rounded-lg border border-white/10 shrink-0 whitespace-nowrap"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,8 +457,17 @@ function CompleteActivityAuditContent() {
           <section className="w-full rounded-2xl p-6 border border-white/10 shadow-2xl bg-[#2B2A7D] bg-gradient-to-r from-[rgba(43,127,255,0.2)] to-[rgba(79,57,246,0.2)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               {/* User Avatar */}
-              <div className="w-16 h-16 rounded-full border-2 border-white/30 overflow-hidden bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0">
-                {userInitials}
+              <div className="w-16 h-16 rounded-full border-2 border-white/30 overflow-hidden bg-gradient-to-tr from-[#2563EB] to-[#7A3BED] flex items-center justify-center text-white font-bold text-xl shadow-lg shrink-0 relative">
+                {userAvatar && !avatarError ? (
+                  <img
+                    src={resolveAvatarUrl(userAvatar)}
+                    alt={userName}
+                    className="w-full h-full object-cover"
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
 
               {/* Identity Info */}
