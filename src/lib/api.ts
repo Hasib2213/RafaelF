@@ -771,5 +771,42 @@ export const adminApi = {
     invalidateClientCache("/api/subscriptions/");
     return res;
   },
+
+  getUserLocations: async (plan?: string): Promise<UserLocationsResponse> => {
+    const query = plan && plan !== "ALL" ? `?plan=${encodeURIComponent(plan)}` : "";
+    return apiClient<UserLocationsResponse>(`/api/analytics/user-locations/${query}`, {
+      method: "GET",
+      cacheTtl: 30,
+    });
+  },
 };
+
+export interface UserLocationItem {
+  id: string;
+  user_name: string;
+  email: string;
+  plan: "Free" | "Pro" | "Enterprise";
+  role: string;
+  avatar_url?: string;
+  ip_address: string;
+  city: string;
+  region: string;
+  country: string;
+  country_code: string;
+  latitude: number;
+  longitude: number;
+  is_active_session: boolean;
+  last_login: string;
+  date_time: string;
+}
+
+export interface UserLocationsResponse {
+  locations: UserLocationItem[];
+  summary: {
+    total_users_mapped: number;
+    active_countries: number;
+    active_cities: number;
+    countries_list: string[];
+  };
+}
 

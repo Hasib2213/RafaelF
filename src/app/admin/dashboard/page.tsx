@@ -29,6 +29,7 @@ import {
 import CurioLogo from "@/components/CurioLogo";
 import LogoutModal from "@/components/feed/LogoutModal";
 import AdminProfileBadge from "@/components/admin/AdminProfileBadge";
+import UserLocationMap from "@/components/admin/UserLocationMap";
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "@/lib/api";
 
@@ -935,6 +936,11 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* ================= LIVE GLOBAL USER DISTRIBUTION MAP ================= */}
+            <div className="w-full">
+              <UserLocationMap />
             </div>
 
             {/* ================= RECENT ACTIVITY TABLE CONTAINER (Frame 2147240222) ================= */}
