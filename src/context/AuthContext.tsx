@@ -16,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (payload: LoginPayload, rememberMe?: boolean) => Promise<LoginResponse>;
+  loginWithGoogle: (credential: string) => Promise<LoginResponse>;
   logout: () => void;
   refreshUser: () => Promise<User | null>;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -99,6 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (credential: string): Promise<LoginResponse> => {
+    setIsLoading(true);
+    try {
+      const response = await authApi.googleLogin(credential);
+      setUser(response.user);
+      return response;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     authApi.logout();
     setUser(null);
@@ -120,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginWithGoogle,
     logout,
     refreshUser,
     setUser,

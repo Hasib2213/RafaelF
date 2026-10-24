@@ -41,13 +41,14 @@ function LoginForm() {
     ? decodeURIComponent(searchParams.get("email")!).trim().toLowerCase()
     : "";
 
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg] = useState<string | null>(
     registered ? "Account created successfully! Please enter your password to log in." : null
@@ -59,6 +60,71 @@ function LoginForm() {
   const [forgotSent, setForgotSent] = useState(false);
   const [isForgotLoading, setIsForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
+
+  const handleGoogleCredential = async (credential: string) => {
+    setIsGoogleLoading(true);
+    setError(null);
+    try {
+      const res = await loginWithGoogle(credential);
+      if (res.user?.is_suspended) {
+        setError(`Your account has been suspended: ${res.user.suspension_reason || "Please contact support."}`);
+        return;
+      }
+      const redirectUrl = searchParams.get("redirect");
+      if (redirectUrl) {
+        router.push(redirectUrl);
+      } else {
+        router.push("/feed");
+      }
+    } catch (err: any) {
+      console.error("Google login failed:", err);
+      setError(err.message || "Google log in failed. Please try again.");
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+
+    const setupGoogle = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) return;
+
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response: any) => {
+          if (response?.credential) {
+            handleGoogleCredential(response.credential);
+          }
+        },
+      });
+
+      const container = document.getElementById("google-login-btn-container");
+      if (container) {
+        container.innerHTML = "";
+        google.accounts.id.renderButton(container, {
+          theme: "outline",
+          size: "large",
+          width: 380,
+          text: "signin_with",
+        });
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      setupGoogle();
+    } else {
+      const timer = setInterval(() => {
+        if ((window as any).google?.accounts?.id) {
+          setupGoogle();
+          clearInterval(timer);
+        }
+      }, 250);
+      return () => clearInterval(timer);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,11 +161,12 @@ function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push("/feed");
-    }, 500);
+    const google = (window as any).google;
+    if (google?.accounts?.id) {
+      google.accounts.id.prompt();
+    } else {
+      setError("Google authentication service is initializing. Please try again in a second.");
+    }
   };
 
   const handleSendResetLink = async (e: React.FormEvent) => {
@@ -363,15 +430,30 @@ function LoginForm() {
               </div>
 
               {/* Google Button Container */}
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full h-14 rounded-lg bg-[#151628] border border-[#383850] hover:bg-[#1f2038] hover:border-[#7A3BED]/60 active:scale-[0.99] text-white font-semibold text-base transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer disabled:opacity-70"
-              >
-                <GoogleIcon className="w-6 h-6" />
-                <span>Log In with Google</span>
-              </button>
+              <div className="relative w-full h-14 overflow-hidden rounded-lg">
+                {/* Visual custom button matching existing Curio aesthetic */}
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading || isGoogleLoading}
+                  className="w-full h-full rounded-lg bg-[#151628] border border-[#383850] hover:bg-[#1f2038] hover:border-[#7A3BED]/60 active:scale-[0.99] text-white font-semibold text-base transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer disabled:opacity-70 pointer-events-none"
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-[#7A3BED]" />
+                  ) : (
+                    <GoogleIcon className="w-6 h-6" />
+                  )}
+                  <span>{isGoogleLoading ? "Connecting to Google..." : "Log In with Google"}</span>
+                </button>
+
+                {/* Transparent Google GSI button layered on top to capture click */}
+                <div
+                  id="google-login-btn-container"
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10 flex items-center justify-center overflow-hidden"
+                  style={{ transform: "scale(1.35)", transformOrigin: "center" }}
+                  title="Log In with Google"
+                />
+              </div>
             </form>
           </div>
         </motion.div>

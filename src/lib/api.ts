@@ -429,6 +429,19 @@ export const authApi = {
     return { ...res, user: normalizedUser };
   },
 
+  // Google OAuth Login
+  googleLogin: async (credential: string): Promise<LoginResponse> => {
+    const res = await apiClient<LoginResponse>("/api/auth/google/", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+      skipAuth: true,
+    });
+    const normalizedUser = normalizeUser(res.user) || res.user;
+    setAuthSession({ access: res.access, refresh: res.refresh }, normalizedUser);
+    invalidateClientCache("/api/auth/profile");
+    return { ...res, user: normalizedUser };
+  },
+
   // Register
   register: async (
     payload: RegisterPayload
