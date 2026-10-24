@@ -2,8 +2,18 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
-import { adminApi, UserLocationItem, UserLocationsResponse } from "@/lib/api";
-import { Globe, Users, Navigation, RotateCw, ZoomIn, ZoomOut, Maximize2, ShieldCheck, X } from "lucide-react";
+import { adminApi, resolveAvatarUrl, invalidateClientCache, UserLocationItem, UserLocationsResponse } from "@/lib/api";
+import {
+  Globe,
+  Users,
+  Navigation,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 
 // Offline self-hosted world TopoJSON map
 const GEO_URL = "/maps/world-110m.json";
@@ -33,10 +43,13 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
     setHasMounted(true);
   }, []);
 
-  const fetchLocations = async (planFilter: string = "ALL", showSpin = false) => {
-    if (showSpin) setIsRefreshing(true);
+  const fetchLocations = async (planFilter: string = "ALL", force = false) => {
+    if (force) {
+      setIsRefreshing(true);
+      invalidateClientCache("/api/analytics/user-locations");
+    }
     try {
-      const res: UserLocationsResponse = await adminApi.getUserLocations(planFilter);
+      const res: UserLocationsResponse = await adminApi.getUserLocations(planFilter, true);
       if (res && Array.isArray(res.locations)) {
         setLocations(res.locations);
         if (res.summary) {
@@ -52,7 +65,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
   };
 
   useEffect(() => {
-    fetchLocations(selectedPlan);
+    fetchLocations(selectedPlan, true);
   }, [selectedPlan]);
 
   const filteredLocations = useMemo(() => {
@@ -60,7 +73,40 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
     return locations.filter((loc) => loc.plan.toLowerCase() === selectedPlan.toLowerCase());
   }, [locations, selectedPlan]);
 
-  // Color mapping matching user's reference aesthetic
+  // Disperse co-located users (e.g. colleagues on the same network/city)
+  // so each user gets their own visible, clickable marker dot on the map
+  const displayedLocations = useMemo(() => {
+    const coordCounts: Record<string, number> = {};
+    return filteredLocations.map((loc) => {
+      const coordKey = `${loc.latitude.toFixed(2)},${loc.longitude.toFixed(2)}`;
+      const indexInCluster = coordCounts[coordKey] || 0;
+      coordCounts[coordKey] = indexInCluster + 1;
+
+      if (indexInCluster === 0) {
+        return {
+          ...loc,
+          displayCoordinates: [loc.longitude, loc.latitude] as [number, number],
+        };
+      }
+
+      // Disperse points in an elegant constellation ring around the anchor
+      const ring = Math.ceil(indexInCluster / 6);
+      const posInRing = (indexInCluster - 1) % 6;
+      const angle = (posInRing * 2 * Math.PI) / 6 + ring * 0.4;
+      const radius = 2.2 * ring; // ~2.2 degrees visible spread on world map
+
+      const offsetLon = loc.longitude + radius * Math.cos(angle);
+      const latRad = (loc.latitude * Math.PI) / 180;
+      const offsetLat = loc.latitude + radius * Math.sin(angle) * Math.max(0.6, Math.cos(latRad));
+
+      return {
+        ...loc,
+        displayCoordinates: [offsetLon, offsetLat] as [number, number],
+      };
+    });
+  }, [filteredLocations]);
+
+  // Color mapping matching UI reference aesthetic
   const getMarkerColor = (plan: string, role?: string) => {
     if (role === "admin") return { dot: "#EF4444", glow: "rgba(239, 68, 68, 0.4)", ring: "#F87171" };
     switch (plan.toLowerCase()) {
@@ -75,7 +121,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
   };
 
   const handleZoomIn = () => {
-    if (zoom < 4) setZoom((prev) => Math.min(prev * 1.4, 4));
+    if (zoom < 5) setZoom((prev) => Math.min(prev * 1.4, 5));
   };
 
   const handleZoomOut = () => {
@@ -85,6 +131,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
   const handleResetZoom = () => {
     setZoom(1);
     setCenter([15, 10]);
+    setSelectedUser(null);
   };
 
   if (!hasMounted) {
@@ -98,7 +145,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
   return (
     <div className={`relative w-full bg-[#0B0F19] border border-white/10 rounded-2xl overflow-hidden shadow-2xl font-['Lato',sans-serif] ${className}`}>
       {/* Top Header & Stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 md:p-6 border-b border-white/10 bg-[#0F172A]/70 backdrop-blur-md">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 md:p-6 border-b border-white/10 bg-[#0F172A]/80 backdrop-blur-md">
         <div>
           <div className="flex items-center gap-2.5">
             <span className="flex h-3 w-3 relative">
@@ -117,7 +164,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
           </p>
         </div>
 
-        {/* Quick Metrics */}
+        {/* Quick Metrics & Refresh */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10">
             <Users className="w-4 h-4 text-blue-400" />
@@ -155,7 +202,7 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
         </div>
       </div>
 
-      {/* Filter and Legend Bar */}
+      {/* Plan Filters and Legend Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 bg-[#0A0D16] border-b border-white/5 text-xs">
         {/* Plan Filters */}
         <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
@@ -196,8 +243,8 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
       </div>
 
       {/* Map Canvas */}
-      <div className="relative w-full h-[450px] md:h-[500px] bg-[#101114] flex items-center justify-center overflow-hidden">
-        {/* Background Radial Gradient Grid */}
+      <div className="relative w-full h-[480px] md:h-[540px] bg-[#101114] flex items-center justify-center overflow-hidden">
+        {/* Radial Background Grid */}
         <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
 
         {isLoading ? (
@@ -255,22 +302,23 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
                 }
               </Geographies>
 
-              {/* User Markers */}
-              {filteredLocations.map((loc) => {
+              {/* All Individual User Markers */}
+              {displayedLocations.map((loc) => {
                 const colors = getMarkerColor(loc.plan, loc.role);
                 const isHovered = hoveredUser?.id === loc.id || selectedUser?.id === loc.id;
 
                 return (
                   <Marker
                     key={loc.id}
-                    coordinates={[loc.longitude, loc.latitude]}
+                    coordinates={loc.displayCoordinates}
                     onClick={() => setSelectedUser(loc)}
                     onMouseEnter={() => setHoveredUser(loc)}
                     onMouseLeave={() => setHoveredUser(null)}
                   >
                     <g className="cursor-pointer transition-transform duration-200 hover:scale-125">
+                      <title>{`${loc.user_name} (${loc.email}) - ${loc.city}, ${loc.country} [${loc.plan}]`}</title>
                       {/* Large invisible hit area for easy hover/tap */}
-                      <circle r={16} fill="transparent" />
+                      <circle r={14} fill="transparent" />
                       {/* Outer Pulse Ring */}
                       <circle
                         r={isHovered ? 13 : 8}
@@ -324,63 +372,80 @@ export default function UserLocationMap({ className = "" }: UserLocationMapProps
         </div>
 
         {/* Interactive Floating Hover / Click User Card */}
-        {(hoveredUser || selectedUser) && (
-          <div className="absolute top-4 left-4 z-30 w-72 bg-[#0F172A]/95 border border-white/15 rounded-xl p-4 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold flex items-center justify-center text-sm shadow-md border border-white/20 shrink-0">
-                  {(hoveredUser || selectedUser)!.user_name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-bold text-white truncate">{(hoveredUser || selectedUser)!.user_name}</p>
-                    {(hoveredUser || selectedUser)!.role === "admin" && (
-                      <ShieldCheck className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                    )}
+        {(hoveredUser || selectedUser) && (() => {
+          const locUser = (hoveredUser || selectedUser)!;
+          return (
+            <div className="absolute top-4 left-4 z-30 w-72 bg-[#0F172A]/95 border border-white/15 rounded-xl p-4 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold flex items-center justify-center text-sm shadow-md border border-white/20 shrink-0 overflow-hidden relative">
+                    {locUser.avatar_url ? (
+                      <img
+                        src={resolveAvatarUrl(locUser.avatar_url)}
+                        alt={locUser.user_name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = "none";
+                          const nextSpan = (e.currentTarget.parentElement as HTMLElement)?.querySelector("span");
+                          if (nextSpan) nextSpan.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
+                    <span className={locUser.avatar_url ? "hidden" : ""}>
+                      {locUser.user_name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
-                  <p className="text-xs text-white/60 truncate">{(hoveredUser || selectedUser)!.email}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-white truncate">{locUser.user_name}</p>
+                      {locUser.role === "admin" && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-white/60 truncate">{locUser.email}</p>
+                  </div>
+                </div>
+
+                {selectedUser && (
+                  <button
+                    onClick={() => setSelectedUser(null)}
+                    className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors cursor-pointer"
+                    title="Close popup"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Location</span>
+                  <span className="text-white font-medium truncate block">
+                    {locUser.city}, {locUser.country_code || locUser.country}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Plan</span>
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold mt-0.5 ${
+                      locUser.plan === "Pro"
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        : locUser.plan === "Enterprise"
+                        ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                        : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    }`}
+                  >
+                    {locUser.plan}
+                  </span>
+                </div>
+                <div className="col-span-2 mt-1">
+                  <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Last Active Session</span>
+                  <span className="text-white/80 font-mono text-[11px] block">{locUser.date_time}</span>
                 </div>
               </div>
-
-              {selectedUser && (
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors cursor-pointer"
-                  title="Close popup"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
-
-            <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Location</span>
-                <span className="text-white font-medium truncate block">
-                  {(hoveredUser || selectedUser)!.city}, {(hoveredUser || selectedUser)!.country_code || (hoveredUser || selectedUser)!.country}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Plan</span>
-                <span
-                  className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold mt-0.5 ${
-                    (hoveredUser || selectedUser)!.plan === "Pro"
-                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                      : (hoveredUser || selectedUser)!.plan === "Enterprise"
-                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  }`}
-                >
-                  {(hoveredUser || selectedUser)!.plan}
-                </span>
-              </div>
-              <div className="col-span-2 mt-1">
-                <span className="text-[10px] text-white/40 uppercase tracking-wider block font-semibold">Last Active Session</span>
-                <span className="text-white/80 font-mono text-[11px] block">{(hoveredUser || selectedUser)!.date_time}</span>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Bottom Footer Info */}

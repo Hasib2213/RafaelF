@@ -111,7 +111,7 @@ function SignUpFormContent() {
       />
 
       {/* Main Container - Exact Figma Frame 2147239123 */}
-      <div className="relative z-10 w-full max-w-[1408px] min-h-[960px] flex flex-col lg:flex-row items-center justify-center gap-7 lg:gap-10">
+      <div className="relative z-10 w-full max-w-[1408px] min-h-fit py-8 lg:py-12 my-auto flex flex-col lg:flex-row items-center justify-center gap-7 lg:gap-10">
         
         {/* Left Visual Artwork Banner (Figma 720px width x 1008px height) */}
         <motion.div

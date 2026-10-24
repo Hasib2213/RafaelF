@@ -896,11 +896,14 @@ export const adminApi = {
     return res;
   },
 
-  getUserLocations: async (plan?: string): Promise<UserLocationsResponse> => {
+  getUserLocations: async (plan?: string, forceRefresh = false): Promise<UserLocationsResponse> => {
+    if (forceRefresh) {
+      invalidateClientCache("/api/analytics/user-locations");
+    }
     const query = plan && plan !== "ALL" ? `?plan=${encodeURIComponent(plan)}` : "";
     return apiClient<UserLocationsResponse>(`/api/analytics/user-locations/${query}`, {
       method: "GET",
-      cacheTtl: 1800,
+      cacheTtl: forceRefresh ? 0 : 120,
     });
   },
 };
